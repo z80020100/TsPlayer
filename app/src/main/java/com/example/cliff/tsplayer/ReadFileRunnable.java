@@ -22,6 +22,8 @@ public class ReadFileRunnable implements Runnable {
 
     private TsPacket packet;
 
+    private int readBytes;
+
     ReadFileRunnable(String inputPath, TsPacket packet){
         this.inputPath = inputPath;
         this.packet = packet;
@@ -47,18 +49,36 @@ public class ReadFileRunnable implements Runnable {
     }
 
     public int readPacket(){
+        packet.packet_info.current_bit = 0;
         try {
-            fileInputBuf.read(packet.ts_data, 0, packet.packet_info.packet_size);
+            readBytes = fileInputBuf.read(packet.ts_data, 0, packet.packet_info.packet_size);
+            if(readBytes != packet.packet_info.packet_size){
+                return -1;
+            }
+            packet.packet_info.packet_number++;
         } catch (IOException e) {
             e.printStackTrace();
         }
-        packet.packet_info.packet_number++;
         return 0;
     }
 
     @Override
     public void run() {
-        readPacket();
-        packet.printRawData();
+        if(readPacket() != -1){
+            packet.printRawData();
+            packet.readHeaderInfo();
+            packet.printHeaderInfo();
+
+            if(packet.header_info.adaptation_field_control == 2 ||
+               packet.header_info.adaptation_field_control == 3) {
+                Log.e(TAG, "TODO: parse adaptation field");
+            }
+            else{
+                packet.packet_info.payload_size = 184;
+            }
+        }
+        else{
+            Log.e(TAG, "Read TS packet error!");
+        }
     }
 }

@@ -93,5 +93,58 @@ public class TsPacket{
         Log.i(TAG, String.format("###############################################"));
     }
 
+    void readHeaderInfo(){
+        header_info.sync_byte                    = ReadBits(this, 8);
+        header_info.transport_error_indicator    = ReadBits(this, 1);
+        header_info.payload_unit_start_indicator = ReadBits(this, 1);
+        header_info.transport_priority           = ReadBits(this, 1);
+        header_info.pid                          = ReadBits(this, 13);
+        header_info.transport_scrambling_control = ReadBits(this, 2);
+        header_info.adaptation_field_control     = ReadBits(this, 2);
+        header_info.continuity_counter           = ReadBits(this, 4);
+    }
 
+    void printHeaderInfo(){
+        Log.i(TAG, String.format("############ Packet %05d Header ##############", packet_info.packet_number));
+        Log.i(TAG, String.format("Sync byte                    = 0x%02X", header_info.sync_byte));
+        Log.i(TAG, String.format("Transport error indicator    = %d", header_info.transport_error_indicator));
+        Log.i(TAG, String.format("Payload unit start indicator = %d", header_info.payload_unit_start_indicator));
+        Log.i(TAG, String.format("Transport priority           = %d", header_info.transport_priority));
+        Log.i(TAG, String.format("PID                          = %d", header_info.pid));
+        Log.i(TAG, String.format("Transport scrambling control = %d", header_info.transport_scrambling_control));
+        Log.i(TAG, String.format("Adaptation field control     = %d", header_info.adaptation_field_control));
+        Log.i(TAG, String.format("Continuity counter           = %d", header_info.continuity_counter));
+
+        // Check TS header info
+        if(header_info.sync_byte != 0x47){
+            Log.e(TAG, "Not TS packet!");
+            // TODO: exception handling
+        }
+
+        if(header_info.transport_error_indicator == 1){
+            Log.e(TAG, "TS packet damaged!");
+            // TODO: exception handling
+        }
+
+        if(header_info.payload_unit_start_indicator == 1){
+            Log.i(TAG, "Carry the first packet of the PES payload or pointer_field for PSI data");
+        }
+
+        if(header_info.adaptation_field_control == 0){
+            Log.i(TAG, "Reserved");
+        }
+        else if(header_info.adaptation_field_control == 1){
+            Log.i(TAG, "Payload only");
+        }
+        else if(header_info.adaptation_field_control == 2){
+            Log.i(TAG, "Adaptation field only");
+        }
+        else if(header_info.adaptation_field_control == 3){
+            Log.i(TAG, "Adaptation field followed by payload");
+        }
+        else{
+            Log.i(TAG, "adaptation_field_control value error!");
+        }
+        Log.i(TAG, "###############################################");
+    }
 }
