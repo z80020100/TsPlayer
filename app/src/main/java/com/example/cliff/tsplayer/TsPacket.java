@@ -14,7 +14,7 @@ public class TsPacket{
     public TsHeaderInfo header_info;
     public byte[] ts_data;
 
-    TsPacket(){
+    public TsPacket(){
         packet_info = new TsPacketInfo();
         header_info = new TsHeaderInfo();
         ts_data = new byte[MAX_TS_PACKET_LENGTH];
@@ -129,6 +129,9 @@ public class TsPacket{
         if(header_info.payload_unit_start_indicator == 1){
             Log.i(TAG, "Carry the first packet of the PES payload or pointer_field for PSI data");
         }
+        else{
+            Log.i(TAG, "Null packet or PES fragment or PSI section without pointer_field");
+        }
 
         if(header_info.adaptation_field_control == 0){
             Log.i(TAG, "Reserved");
@@ -146,5 +149,11 @@ public class TsPacket{
             Log.i(TAG, "adaptation_field_control value error!");
         }
         Log.i(TAG, "###############################################");
+
+
+    }
+
+    void readPsiPointer(PsiPointer psi_pointer_data){
+        psi_pointer_data.pointer_field = ReadBits(this, 8);
     }
 }

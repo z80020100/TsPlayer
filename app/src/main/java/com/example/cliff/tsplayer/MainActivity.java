@@ -10,12 +10,15 @@ public class MainActivity extends AppCompatActivity {
     public static final String TAG = "Cliff";
 
     String inputPath;
-    TsPacket packet;
     ReadFileRunnable readFileWork;
     HandlerThread handlerThread = new HandlerThread("HandlerThread");
     Handler handler;
 
     int ret;
+
+    // dynamic data buffer
+    TsPacket packet;
+    PsiPointer psi_pointer_data;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,14 +29,20 @@ public class MainActivity extends AppCompatActivity {
         handlerThread.start();
         handler = new Handler(handlerThread.getLooper());
 
-        packet = new TsPacket();
         inputPath = Environment.getExternalStorageDirectory().getPath() + "/Mi.ts";
 
-        readFileWork = new ReadFileRunnable(inputPath, packet);
+        // dynamic data buffer
+        packet = new TsPacket();
+        psi_pointer_data = new PsiPointer();
+
+        readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data);
         ret = readFileWork.openFile();
         if(ret >= 0){
             handler.post(readFileWork);
+            handler.post(readFileWork);
+            handler.post(readFileWork);
+            handler.post(readFileWork);
+            handler.post(readFileWork);
         }
-
     }
 }

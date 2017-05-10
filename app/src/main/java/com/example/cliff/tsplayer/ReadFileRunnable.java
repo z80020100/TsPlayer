@@ -20,13 +20,16 @@ public class ReadFileRunnable implements Runnable {
     private FileInputStream fileInputStram;
     private BufferedInputStream fileInputBuf;
 
-    private TsPacket packet;
+    // dynamic data buffer
+    TsPacket packet;
+    PsiPointer psi_pointer_data;
 
     private int readBytes;
 
-    ReadFileRunnable(String inputPath, TsPacket packet){
+    public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data){
         this.inputPath = inputPath;
         this.packet = packet;
+        this.psi_pointer_data = psi_pointer_data;
     }
 
     public int openFile(){
@@ -76,6 +79,23 @@ public class ReadFileRunnable implements Runnable {
             else{
                 packet.packet_info.payload_size = 184;
             }
+
+            // Parse pointer_field for PAT
+            if(packet.header_info.pid == Constant.PID_PAT){
+                Log.i(TAG, "PSI type: PAT");
+                if(packet.header_info.payload_unit_start_indicator == 1){
+                    Log.i(TAG, "Info: parse pointer_field for PSI section (PAT)");
+                    packet.readPsiPointer(psi_pointer_data);
+                    psi_pointer_data.printPsiPointer();
+                }
+                else{
+                    Log.i(TAG, "Info: PSI section (PAT) without pointer_field");
+                }
+
+
+
+            }
+
         }
         else{
             Log.e(TAG, "Read TS packet error!");
