@@ -15,14 +15,14 @@ public class ProgramAssociationTable {
     public int reserved_1;               // 1 bit
     public int section_length;           // 12 bits
     public int transport_stream_id;      // 16 bits
-    public  int reserved_2;              // 2 bit
+    public int reserved_2;               // 2 bit
     public int version_number;           // 5 bits
     public int current_next_indicator;   // 1 bit
     public int section_number;           // 8 bits
-    public  int last_section_number;     // 8 bits
+    public int last_section_number;      // 8 bits
     ProgramInfo[] program_info_array;    // the length of this array is channel_number, each the size of element is 4 bytes
     public int crc_32;                   // 32 bits
-    public  int channel_number;          // N in ISO13818-1 Table 2-25, N = (section_length-9)/4
+    public int channel_number;           // N in ISO13818-1 Table 2-25, N = (section_length-9)/4
 
     public ProgramAssociationTable(){
         table_id = 0;

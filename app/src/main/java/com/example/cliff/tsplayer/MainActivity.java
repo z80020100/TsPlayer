@@ -22,6 +22,7 @@ public class MainActivity extends AppCompatActivity {
 
     // permanent
     ProgramAssociationTable pat;
+    ProgramMapTable pmt;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,13 +41,11 @@ public class MainActivity extends AppCompatActivity {
 
         // permanent
         pat = new ProgramAssociationTable();
+        pmt = new ProgramMapTable();
 
-        readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat);
+        readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat, pmt);
         ret = readFileWork.openFile();
         if(ret >= 0){
-            handler.post(readFileWork);
-            handler.post(readFileWork);
-            handler.post(readFileWork);
             handler.post(readFileWork);
             handler.post(readFileWork);
         }

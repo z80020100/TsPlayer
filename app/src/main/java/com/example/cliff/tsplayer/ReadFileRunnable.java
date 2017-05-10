@@ -26,14 +26,16 @@ public class ReadFileRunnable implements Runnable {
 
     // permanent
     ProgramAssociationTable pat;
+    ProgramMapTable pmt;
 
     private int readBytes;
 
-    public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat){
+    public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat, ProgramMapTable pmt){
         this.inputPath = inputPath;
         this.packet = packet;
         this.psi_pointer_data = psi_pointer_data;
         this.pat = pat;
+        this.pmt = pmt;
     }
 
     public int openFile(){
@@ -72,7 +74,7 @@ public class ReadFileRunnable implements Runnable {
     @Override
     public void run() {
         if(readPacket() != -1){
-            packet.printRawData();
+            //packet.printRawData();
             packet.readHeaderInfo();
             packet.printHeaderInfo();
 
@@ -99,6 +101,31 @@ public class ReadFileRunnable implements Runnable {
                 // Parse PAT
                 packet.readPat(pat);
                 pat.printPat();
+            }
+
+            // Detect and parse PMT
+            if(pat.channel_number > 1){
+                Log.e(TAG, "The number of channel > 1");
+            }
+            else if(pat.channel_number < 1){
+                Log.e(TAG, "The number of channel < 1");
+            }
+
+            for(int i = 0; i < pat.channel_number; i++){
+                if(packet.header_info.pid == pat.program_info_array[i].program_map_pid){
+                    Log.i(TAG, String.format("Detect PMT, PID = %d", packet.header_info.pid));
+                    if(packet.header_info.payload_unit_start_indicator == 1){
+                        Log.i(TAG, "Info: parse pointer_field for PSI section (PMT)");
+                        packet.readPsiPointer(psi_pointer_data);
+                        psi_pointer_data.printPsiPointer();
+                    }
+                    else{
+                        Log.i(TAG, "Info: PSI section (PMT) without pointer_field");
+                    }
+
+                    packet.readPmt(pmt);
+                    pmt.printPmt();
+                }
             }
 
         }

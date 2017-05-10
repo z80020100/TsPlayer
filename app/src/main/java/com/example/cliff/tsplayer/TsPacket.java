@@ -180,4 +180,23 @@ public class TsPacket{
         }
         pat.crc_32                    = ReadBits(this, 32);
     }
+
+    void readPmt(ProgramMapTable pmt){
+        pmt.table_id                 = ReadBits(this, 8);
+        pmt.section_syntax_indicator = ReadBits(this, 1);
+        pmt.zero                     = ReadBits(this, 1);
+        pmt.reserved_1               = ReadBits(this, 2);
+        pmt.section_length           = ReadBits(this, 12);
+        pmt.program_number           = ReadBits(this, 16);
+        pmt.reserved_2               = ReadBits(this, 2);
+        pmt.version_number           = ReadBits(this, 5);
+        pmt.current_next_indicator   = ReadBits(this, 1);
+        pmt.section_number           = ReadBits(this, 8);
+        pmt.last_section_number      = ReadBits(this, 8);
+        pmt.reserved_3               = ReadBits(this, 3);
+        pmt.pcr_pid                  = ReadBits(this, 13);
+        pmt.reserved_4               = ReadBits(this, 4);
+        pmt.program_info_length      = ReadBits(this, 12);
+        pmt.unread_size = pmt.section_length - 9; // 9 bytes: data size from program_number to program_info_length
+    }
 }
