@@ -20,6 +20,9 @@ public class MainActivity extends AppCompatActivity {
     TsPacket packet;
     PsiPointer psi_pointer_data;
 
+    // permanent
+    ProgramAssociationTable pat;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,7 +38,10 @@ public class MainActivity extends AppCompatActivity {
         packet = new TsPacket();
         psi_pointer_data = new PsiPointer();
 
-        readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data);
+        // permanent
+        pat = new ProgramAssociationTable();
+
+        readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat);
         ret = readFileWork.openFile();
         if(ret >= 0){
             handler.post(readFileWork);

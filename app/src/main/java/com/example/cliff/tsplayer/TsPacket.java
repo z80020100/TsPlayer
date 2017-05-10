@@ -93,7 +93,7 @@ public class TsPacket{
         Log.i(TAG, String.format("###############################################"));
     }
 
-    void readHeaderInfo(){
+    public void readHeaderInfo(){
         header_info.sync_byte                    = ReadBits(this, 8);
         header_info.transport_error_indicator    = ReadBits(this, 1);
         header_info.payload_unit_start_indicator = ReadBits(this, 1);
@@ -104,7 +104,7 @@ public class TsPacket{
         header_info.continuity_counter           = ReadBits(this, 4);
     }
 
-    void printHeaderInfo(){
+    public void printHeaderInfo(){
         Log.i(TAG, String.format("############ Packet %05d Header ##############", packet_info.packet_number));
         Log.i(TAG, String.format("Sync byte                    = 0x%02X", header_info.sync_byte));
         Log.i(TAG, String.format("Transport error indicator    = %d", header_info.transport_error_indicator));
@@ -153,7 +153,31 @@ public class TsPacket{
 
     }
 
-    void readPsiPointer(PsiPointer psi_pointer_data){
+    public void readPsiPointer(PsiPointer psi_pointer_data){
         psi_pointer_data.pointer_field = ReadBits(this, 8);
+    }
+
+    public void readPat(ProgramAssociationTable pat){
+        pat.table_id                 = ReadBits(this, 8);
+        pat.section_syntax_indicator = ReadBits(this, 1);
+        pat.zero                     = ReadBits(this, 1);
+        pat.reserved_1               = ReadBits(this, 2);
+        pat.section_length           = ReadBits(this, 12);
+        pat.transport_stream_id      = ReadBits(this, 16);
+        pat.reserved_2               = ReadBits(this, 2);
+        pat.version_number           = ReadBits(this, 5);
+        pat.current_next_indicator   = ReadBits(this, 1);
+        pat.section_number           = ReadBits(this, 8);
+        pat.last_section_number      = ReadBits(this, 8);
+        pat.channel_number           = (pat.section_length-9)/4;
+
+        // allocate memory to store program info
+        pat.allocateProgramInfoArray();
+        for(int i = 0; i < pat.channel_number; i++){
+            pat.program_info_array[i].program_number  = ReadBits(this, 16);
+            pat.program_info_array[i].reserved        = ReadBits(this, 3);
+            pat.program_info_array[i].program_map_pid = ReadBits(this, 13);
+        }
+        pat.crc_32                    = ReadBits(this, 32);
     }
 }

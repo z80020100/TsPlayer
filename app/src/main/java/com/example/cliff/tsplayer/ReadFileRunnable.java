@@ -24,12 +24,16 @@ public class ReadFileRunnable implements Runnable {
     TsPacket packet;
     PsiPointer psi_pointer_data;
 
+    // permanent
+    ProgramAssociationTable pat;
+
     private int readBytes;
 
-    public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data){
+    public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat){
         this.inputPath = inputPath;
         this.packet = packet;
         this.psi_pointer_data = psi_pointer_data;
+        this.pat = pat;
     }
 
     public int openFile(){
@@ -92,8 +96,9 @@ public class ReadFileRunnable implements Runnable {
                     Log.i(TAG, "Info: PSI section (PAT) without pointer_field");
                 }
 
-
-
+                // Parse PAT
+                packet.readPat(pat);
+                pat.printPat();
             }
 
         }
