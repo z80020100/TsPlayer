@@ -51,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
         if(ret >= 0){
             handler.post(readFileWork);
             handler.post(readFileWork);
+            handler.post(readFileWork);
+            handler.post(readFileWork);
         }
     }
 }

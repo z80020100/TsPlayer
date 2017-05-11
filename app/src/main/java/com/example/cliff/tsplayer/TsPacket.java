@@ -225,4 +225,33 @@ public class TsPacket{
         pmt.unread_size = pmt.unread_size - 4;
         Log.i(TAG, String.format("PMT CRC32      = 0x%08X", pmt.crc_32));
     }
+
+    int readAdaptationField(AdaptationField adaptation_field_data){
+        int check_value = 0;
+        adaptation_field_data.adaptation_field_length              = ReadBits(this, 8);
+        adaptation_field_data.discontinuity_indicator              = ReadBits(this, 1);
+        adaptation_field_data.random_access_indicator              = ReadBits(this, 1);
+        adaptation_field_data.elementary_stream_priority_indicator = ReadBits(this, 1);
+        adaptation_field_data.pcr_flag                             = ReadBits(this, 1);
+        adaptation_field_data.opcr_flag                            = ReadBits(this, 1);
+        adaptation_field_data.splicing_point_flag                  = ReadBits(this, 1);
+        adaptation_field_data.transport_private_data_flag          = ReadBits(this, 1);
+        adaptation_field_data.adaptation_field_extension_flag      = ReadBits(this, 1);
+
+        check_value = adaptation_field_data.discontinuity_indicator |
+                      adaptation_field_data.random_access_indicator |
+                      adaptation_field_data.elementary_stream_priority_indicator |
+                      adaptation_field_data.pcr_flag |
+                      adaptation_field_data.opcr_flag |
+                      adaptation_field_data.splicing_point_flag |
+                      adaptation_field_data.transport_private_data_flag |
+                      adaptation_field_data.adaptation_field_extension_flag;
+
+        if(check_value != 0){
+            Log.e(TAG, "Unsupported adaptation field parameter!");
+            return -1;
+        }
+
+        return 0;
+    }
 }

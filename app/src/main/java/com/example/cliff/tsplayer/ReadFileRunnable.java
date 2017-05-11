@@ -24,6 +24,7 @@ public class ReadFileRunnable implements Runnable {
     TsPacket packet;
     PsiPointer psi_pointer_data;
     PmtStreamInfo stream_info_buf;
+    AdaptationField adaptation_field_data;
 
     // permanent
     ProgramAssociationTable pat;
@@ -47,6 +48,7 @@ public class ReadFileRunnable implements Runnable {
         this.pmt = pmt;
         this.stream_info_h264 = stream_info_h264;
         this.stream_info_aac = stream_info_aac;
+        this.adaptation_field_data = new AdaptationField();
     }
 
     public int openFile(){
@@ -91,7 +93,12 @@ public class ReadFileRunnable implements Runnable {
 
             if(packet.header_info.adaptation_field_control == 2 ||
                packet.header_info.adaptation_field_control == 3) {
-                Log.e(TAG, "TODO: parse adaptation field");
+                packet.readAdaptationField(adaptation_field_data);
+                adaptation_field_data.printAdaptationField();
+                packet.packet_info.payload_size = 184 - adaptation_field_data.adaptation_field_length - 1; // 1: minus sizeof(adaptation_field_length)
+                Log.i(TAG, String.format("TS packet payload size = %d", packet.packet_info.payload_size));
+                Log.i(TAG, String.format("Skip: stuffing data %d bytes", adaptation_field_data.adaptation_field_length - 1));
+                packet.tsPacketSkipReadByte(adaptation_field_data.adaptation_field_length - 1); // adaptation_field_length = sizeof(adaptation parameter) + sizeof(stuffing_data)
             }
             else{
                 packet.packet_info.payload_size = 184;
@@ -178,8 +185,19 @@ public class ReadFileRunnable implements Runnable {
                     else{
                         Log.e(TAG, String.format("pmt.unread_size = %d is incorrect, parse PMT failed...", pmt.unread_size));
                     }
-
+                    break; // Once find PMT, stop detect PMT in this packet because one packet only can include one PMT
                 }
+            }
+
+            // skip process PCR
+            if(detect_pcr_pid == 1 && packet.header_info.pid == pmt.pcr_pid){
+                Log.e(TAG, "Skip: PCR Packet");
+            }
+
+            // process PES packet with H.264 stream
+            if(detect_h264_stream == 1 && packet.header_info.pid == stream_info_h264.elementary_pid){
+                Log.i(TAG, "H.264 Packet");
+
             }
 
         }
