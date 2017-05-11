@@ -153,6 +153,17 @@ public class TsPacket{
 
     }
 
+    public void tsPacketSkipReadByte(int skip_byte){
+        int skip_bits = skip_byte*8;
+        if(skip_byte > 0){
+            Log.e(TAG,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            Log.i(TAG, String.format("Skip %d byte(s)", skip_byte));
+            ReadBits(this, skip_bits);
+            Log.i(TAG, String.format("Seek current bit to %d", packet_info.current_bit));
+            Log.e(TAG,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        }
+    }
+
     public void readPsiPointer(PsiPointer psi_pointer_data){
         psi_pointer_data.pointer_field = ReadBits(this, 8);
     }
@@ -181,7 +192,7 @@ public class TsPacket{
         pat.crc_32                    = ReadBits(this, 32);
     }
 
-    void readPmt(ProgramMapTable pmt){
+    public void readPmt(ProgramMapTable pmt){
         pmt.table_id                 = ReadBits(this, 8);
         pmt.section_syntax_indicator = ReadBits(this, 1);
         pmt.zero                     = ReadBits(this, 1);
@@ -198,5 +209,20 @@ public class TsPacket{
         pmt.reserved_4               = ReadBits(this, 4);
         pmt.program_info_length      = ReadBits(this, 12);
         pmt.unread_size = pmt.section_length - 9; // 9 bytes: data size from program_number to program_info_length
+    }
+
+    public void readPmtStreamInfo(PmtStreamInfo stream_info, ProgramMapTable pmt){
+        stream_info.stream_type    = ReadBits(this, 8);
+        stream_info.reserved_1     = ReadBits(this, 3);
+        stream_info.elementary_pid = ReadBits(this, 13);
+        stream_info.reserved_2     = ReadBits(this, 4);
+        stream_info.es_info_length = ReadBits(this, 12);
+        pmt.unread_size = pmt.unread_size - 5;
+    }
+
+    public void readPmtCrc32(ProgramMapTable pmt){
+        pmt.crc_32 = ReadBits(this, 32);
+        pmt.unread_size = pmt.unread_size - 4;
+        Log.i(TAG, String.format("PMT CRC32      = 0x%08X", pmt.crc_32));
     }
 }

@@ -23,19 +23,30 @@ public class ReadFileRunnable implements Runnable {
     // dynamic data buffer
     TsPacket packet;
     PsiPointer psi_pointer_data;
+    PmtStreamInfo stream_info_buf;
 
     // permanent
     ProgramAssociationTable pat;
     ProgramMapTable pmt;
+    PmtStreamInfo stream_info_h264, stream_info_aac;
+
+    // flag
+    int detect_h264_stream = 0;
+    int detect_aac_stream = 0;
+    int detect_pcr_pid = 0;
+    int detect_pes_start = 0;
+    int pes_separate_way;
 
     private int readBytes;
 
-    public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat, ProgramMapTable pmt){
+    public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat, ProgramMapTable pmt, PmtStreamInfo stream_info_h264, PmtStreamInfo stream_info_aac){
         this.inputPath = inputPath;
         this.packet = packet;
         this.psi_pointer_data = psi_pointer_data;
         this.pat = pat;
         this.pmt = pmt;
+        this.stream_info_h264 = stream_info_h264;
+        this.stream_info_aac = stream_info_aac;
     }
 
     public int openFile(){
@@ -124,7 +135,50 @@ public class ReadFileRunnable implements Runnable {
                     }
 
                     packet.readPmt(pmt);
+                    detect_pcr_pid = 1;
                     pmt.printPmt();
+                    if(pmt.program_info_length > 0){
+                        // TODO: parse descriptor
+                        Log.e(TAG, "TODO: parse descriptor");
+                        Log.e(TAG, "Skip parse descriptor");
+                        packet.tsPacketSkipReadByte(pmt.program_info_length);
+                    }
+
+                    // read stream info from PMT
+                    while(pmt.unread_size >= 9) // 9: stream_info physical data size (40 bits) + CRC32 (32 bits)
+                    {
+                        // reset StreamInfoBuf
+                        stream_info_buf = new PmtStreamInfo();
+                        packet.readPmtStreamInfo(stream_info_buf, pmt);
+                        stream_info_buf.printPmtStreamInfo();
+                        if(stream_info_buf.es_info_length > 0){
+                            // TODO: parse descriptor, use skip as workaround
+                            Log.e(TAG, "Skip parse descriptor");
+                            packet.tsPacketSkipReadByte(stream_info_buf.es_info_length);
+                            pmt.unread_size = pmt.unread_size - stream_info_buf.es_info_length;
+                        }
+
+                        // store stream info for H264
+                        if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_H264){
+                            PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_h264);
+                            Log.i(TAG, String.format("Detect Video Stream: H.264, PID = %d", stream_info_h264.elementary_pid));
+                            detect_h264_stream = 1;
+                        }
+
+                        // store stream info for AAC
+                        if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_AAC){
+                            PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_aac);
+                            Log.i(TAG, String.format("Detect Audio Stream: AAC, PID = %d", stream_info_aac.elementary_pid));
+                            detect_aac_stream = 1;
+                        }
+                    }
+                    if(pmt.unread_size == 4){
+                        packet.readPmtCrc32(pmt);
+                    }
+                    else{
+                        Log.e(TAG, String.format("pmt.unread_size = %d is incorrect, parse PMT failed...", pmt.unread_size));
+                    }
+
                 }
             }
 
