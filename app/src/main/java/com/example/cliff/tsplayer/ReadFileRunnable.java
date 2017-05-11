@@ -29,6 +29,7 @@ public class ReadFileRunnable implements Runnable {
     PmtStreamInfo stream_info_buf;
     AdaptationField adaptation_field_data;
     PesHeader pes_header_buf;
+    PesPayload pes_packet;
 
     // permanent
     ProgramAssociationTable pat;
@@ -42,7 +43,7 @@ public class ReadFileRunnable implements Runnable {
     int detect_pes_start = 0;
     int pes_separate_way;
 
-    private int readBytes, ts_unread_size;
+    private int readBytes, ts_unread_size, pes_payload_size;
     private int ret;
 
     public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat, ProgramMapTable pmt, PmtStreamInfo stream_info_h264, PmtStreamInfo stream_info_aac){
@@ -224,6 +225,13 @@ public class ReadFileRunnable implements Runnable {
                             if(pes_header_buf.pes_packet_length != 0){
                                 pes_separate_way = SEPARATE_PES_BY_PES_LENGTH;
                                 Log.i(TAG, String.format("Separate PES by PES packet length = %d", pes_header_buf.pes_packet_length));
+                                // PES payload size = pes_packet_length - sizeof(stream_id) - sizeof(pes_packet_length) - pes_header_data_length
+                                pes_payload_size = pes_header_buf.pes_packet_length - 3 - pes_header_buf.pes_header_data_length;
+                                pes_packet = new PesPayload(pes_payload_size);
+                                Log.i(TAG, String.format("PES payload size  = %d", pes_packet.pes_payload_length));
+                                packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
+                                pes_packet.printRawData();
+
                             }
                             else{
                                 pes_separate_way = SEPARATE_PES_BY_PES_START_CODE;
