@@ -303,10 +303,7 @@ public class TsPacket{
     }
 
     void copyPesPayloadFromTs(PesPayload pes_packet, int source_start_byte, int copy_size){
-        //unsigned char *source_start_ptr = (unsigned char*)(source_packet->ts_data) + source_start_byte;
-        //unsigned char *target_start_ptr = (unsigned char*)(pes_packet->pes_data) + pes_packet->copied_byte;
         Log.i(TAG, String.format("Copy %d bytes data\nfrom TS packet position: %d\nto PES packet position: %d", copy_size, source_start_byte, pes_packet.copied_byte));
-        //memcpy(target_start_ptr, source_start_ptr, copy_size);
         System.arraycopy(this.ts_data, source_start_byte, pes_packet.pes_data, pes_packet.copied_byte, copy_size);
         pes_packet.copied_byte = pes_packet.copied_byte + copy_size;
     }
