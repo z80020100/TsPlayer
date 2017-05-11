@@ -2,6 +2,15 @@ package com.example.cliff.tsplayer;
 
 import android.util.Log;
 
+import static com.example.cliff.tsplayer.Constant.DSMCC_STREAM;
+import static com.example.cliff.tsplayer.Constant.ECM;
+import static com.example.cliff.tsplayer.Constant.EMM;
+import static com.example.cliff.tsplayer.Constant.ITU_T_REC_H2221_TYPE_E_STREAM;
+import static com.example.cliff.tsplayer.Constant.PADDING_STREAM;
+import static com.example.cliff.tsplayer.Constant.PRIVATE_STREAM_2;
+import static com.example.cliff.tsplayer.Constant.PROGRAM_STREAM_DIRECTORY;
+import static com.example.cliff.tsplayer.Constant.PROGRAM_STREAM_MAP;
+
 /**
  * Created by CLIFF on 2017/5/9.
  */
@@ -68,7 +77,7 @@ public class TsPacket{
         return (TsPacketObj.ts_data[nIndex] >> (8-nOffset)) & 0x01;
     }
 
-    private int ReadBits(TsPacket rawParameterObj, int n) // 從currentBit所在位置的bit讀出後n個bit之值
+    public int ReadBits(TsPacket rawParameterObj, int n) // 從currentBit所在位置的bit讀出後n個bit之值
     {
         int r = 0;
         int i;
@@ -250,6 +259,44 @@ public class TsPacket{
         if(check_value != 0){
             Log.e(TAG, "Unsupported adaptation field parameter!");
             return -1;
+        }
+
+        return 0;
+    }
+
+    public int readPesHeader(PesHeader pes_header_buf){
+        pes_header_buf.stream_id = ReadBits(this, 8);
+        if(pes_header_buf.stream_id == PROGRAM_STREAM_MAP ||
+           pes_header_buf.stream_id == PADDING_STREAM ||
+           pes_header_buf.stream_id == PRIVATE_STREAM_2 ||
+           pes_header_buf.stream_id == ECM ||
+           pes_header_buf.stream_id == EMM ||
+           pes_header_buf.stream_id == PROGRAM_STREAM_DIRECTORY ||
+           pes_header_buf.stream_id == DSMCC_STREAM ||
+           pes_header_buf.stream_id == ITU_T_REC_H2221_TYPE_E_STREAM)
+        {
+            Log.e(TAG, "Unsupported PES packet!");
+            return -1;
+        }
+
+        pes_header_buf.pes_packet_length         = ReadBits(this, 16);
+        pes_header_buf.binary_10                 = ReadBits(this, 2);
+        pes_header_buf.pes_scrambling_control    = ReadBits(this, 2);
+        pes_header_buf.pes_priority              = ReadBits(this, 1);
+        pes_header_buf.data_alignment_indicator  = ReadBits(this, 1);
+        pes_header_buf.copyright                 = ReadBits(this, 1);
+        pes_header_buf.original_or_copy          = ReadBits(this, 1);
+        pes_header_buf.pts_dts_flags             = ReadBits(this, 2);
+        pes_header_buf.escr_flag                 = ReadBits(this, 1);
+        pes_header_buf.es_rate_flag              = ReadBits(this, 1);
+        pes_header_buf.dsm_trick_mode_flag       = ReadBits(this, 1);
+        pes_header_buf.additional_copy_info_flag = ReadBits(this, 1);
+        pes_header_buf.pes_crc_flag              = ReadBits(this, 1);
+        pes_header_buf.pes_extension_flag        = ReadBits(this, 1);
+        pes_header_buf.pes_header_data_length    = ReadBits(this, 8);
+
+        if(pes_header_buf.data_alignment_indicator == 0){
+            Log.e(TAG, "data_alignment_indicator = 0\n");
         }
 
         return 0;

@@ -8,6 +8,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import static com.example.cliff.tsplayer.Constant.SEPARATE_PES_BY_PES_LENGTH;
+import static com.example.cliff.tsplayer.Constant.SEPARATE_PES_BY_PES_START_CODE;
+
 /**
  * Created by CLIFF on 2017/5/9.
  */
@@ -25,6 +28,7 @@ public class ReadFileRunnable implements Runnable {
     PsiPointer psi_pointer_data;
     PmtStreamInfo stream_info_buf;
     AdaptationField adaptation_field_data;
+    PesHeader pes_header_buf;
 
     // permanent
     ProgramAssociationTable pat;
@@ -38,7 +42,8 @@ public class ReadFileRunnable implements Runnable {
     int detect_pes_start = 0;
     int pes_separate_way;
 
-    private int readBytes;
+    private int readBytes, ts_unread_size;
+    private int ret;
 
     public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat, ProgramMapTable pmt, PmtStreamInfo stream_info_h264, PmtStreamInfo stream_info_aac){
         this.inputPath = inputPath;
@@ -49,6 +54,7 @@ public class ReadFileRunnable implements Runnable {
         this.stream_info_h264 = stream_info_h264;
         this.stream_info_aac = stream_info_aac;
         this.adaptation_field_data = new AdaptationField();
+        this.pes_header_buf = new PesHeader();
     }
 
     public int openFile(){
@@ -197,6 +203,39 @@ public class ReadFileRunnable implements Runnable {
             // process PES packet with H.264 stream
             if(detect_h264_stream == 1 && packet.header_info.pid == stream_info_h264.elementary_pid){
                 Log.i(TAG, "H.264 Packet");
+
+                if(detect_pes_start == 1){
+
+                }
+                else{
+                    if(packet.ReadBits(packet, 24) == Constant.PES_PACKET_START_CODE &&
+                            packet.header_info.payload_unit_start_indicator == 1){
+                        Log.i(TAG, "Found PES start code!");
+                        detect_pes_start = 1;
+                        ret = packet.readPesHeader(pes_header_buf);
+                        if(ret == 0){
+                            pes_header_buf.printPesHeader();
+                            // skip the optional fields and any stuffing bytes contained in this PES packet header, include PTS, DTS
+                            packet.tsPacketSkipReadByte(pes_header_buf.pes_header_data_length);
+                            // unread bytes for TS packet = the size of packet - current bit / 8
+                            ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
+                            Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+
+                            if(pes_header_buf.pes_packet_length != 0){
+                                pes_separate_way = SEPARATE_PES_BY_PES_LENGTH;
+                                Log.i(TAG, String.format("Separate PES by PES packet length = %d", pes_header_buf.pes_packet_length));
+                            }
+                            else{
+                                pes_separate_way = SEPARATE_PES_BY_PES_START_CODE;
+                            }
+                        }
+                        else{
+                            detect_pes_start = 0;
+                            Log.e(TAG, "Skip Unsupported PES");
+                        }
+
+                    }
+                }
 
             }
 
