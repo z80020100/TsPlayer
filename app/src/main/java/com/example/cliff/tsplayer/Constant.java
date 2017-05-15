@@ -27,4 +27,6 @@ public class Constant {
     // PES separate way
     public static final int SEPARATE_PES_BY_PES_LENGTH = 1;
     public static final int SEPARATE_PES_BY_PES_START_CODE = 2;
+
+    public static final int SPEC_MAX_PES_LENGTH = 65536;
 }

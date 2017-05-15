@@ -50,9 +50,6 @@ public class MainActivity extends AppCompatActivity {
         ret = readFileWork.openFile();
         if(ret >= 0){
             handler.post(readFileWork);
-            handler.post(readFileWork);
-            handler.post(readFileWork);
-            handler.post(readFileWork);
         }
     }
 }

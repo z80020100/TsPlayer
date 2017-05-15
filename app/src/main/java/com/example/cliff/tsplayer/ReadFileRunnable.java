@@ -10,6 +10,7 @@ import java.io.IOException;
 
 import static com.example.cliff.tsplayer.Constant.SEPARATE_PES_BY_PES_LENGTH;
 import static com.example.cliff.tsplayer.Constant.SEPARATE_PES_BY_PES_START_CODE;
+import static com.example.cliff.tsplayer.Constant.SPEC_MAX_PES_LENGTH;
 
 /**
  * Created by CLIFF on 2017/5/9.
@@ -43,8 +44,9 @@ public class ReadFileRunnable implements Runnable {
     int detect_pes_start = 0;
     int pes_separate_way;
 
-    private int readBytes, ts_unread_size, pes_payload_size;
+    private int readBytes, ts_unread_size, pes_payload_size, allocate_pes_size = SPEC_MAX_PES_LENGTH;
     private int ret;
+    public boolean loop_ctrl = true;
 
     public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat, ProgramMapTable pmt, PmtStreamInfo stream_info_h264, PmtStreamInfo stream_info_aac){
         this.inputPath = inputPath;
@@ -81,8 +83,11 @@ public class ReadFileRunnable implements Runnable {
         packet.packet_info.current_bit = 0;
         try {
             readBytes = fileInputBuf.read(packet.ts_data, 0, packet.packet_info.packet_size);
+            if(readBytes == -1){
+                return readBytes; // return -1 if the end of the file is reached
+            }
             if(readBytes != packet.packet_info.packet_size){
-                return -1;
+                return -2;
             }
             packet.packet_info.packet_number++;
         } catch (IOException e) {
@@ -93,163 +98,196 @@ public class ReadFileRunnable implements Runnable {
 
     @Override
     public void run() {
-        if(readPacket() != -1){
-            //packet.printRawData();
-            packet.readHeaderInfo();
-            packet.printHeaderInfo();
+        while(loop_ctrl){
+            ret = readPacket();
+            if(ret == 0){
+                //packet.printRawData();
+                packet.readHeaderInfo();
+                packet.printHeaderInfo();
 
-            if(packet.header_info.adaptation_field_control == 2 ||
-               packet.header_info.adaptation_field_control == 3) {
-                packet.readAdaptationField(adaptation_field_data);
-                adaptation_field_data.printAdaptationField();
-                packet.packet_info.payload_size = 184 - adaptation_field_data.adaptation_field_length - 1; // 1: minus sizeof(adaptation_field_length)
-                Log.i(TAG, String.format("TS packet payload size = %d", packet.packet_info.payload_size));
-                Log.i(TAG, String.format("Skip: stuffing data %d bytes", adaptation_field_data.adaptation_field_length - 1));
-                packet.tsPacketSkipReadByte(adaptation_field_data.adaptation_field_length - 1); // adaptation_field_length = sizeof(adaptation parameter) + sizeof(stuffing_data)
-            }
-            else{
-                packet.packet_info.payload_size = 184;
-            }
-
-            // Parse pointer_field for PAT
-            if(packet.header_info.pid == Constant.PID_PAT){
-                Log.i(TAG, "PSI type: PAT");
-                if(packet.header_info.payload_unit_start_indicator == 1){
-                    Log.i(TAG, "Info: parse pointer_field for PSI section (PAT)");
-                    packet.readPsiPointer(psi_pointer_data);
-                    psi_pointer_data.printPsiPointer();
+                if(packet.header_info.adaptation_field_control == 2 ||
+                        packet.header_info.adaptation_field_control == 3) {
+                    packet.readAdaptationField(adaptation_field_data);
+                    adaptation_field_data.printAdaptationField();
+                    packet.packet_info.payload_size = 184 - adaptation_field_data.adaptation_field_length - 1; // 1: minus sizeof(adaptation_field_length)
+                    Log.i(TAG, String.format("TS packet payload size = %d", packet.packet_info.payload_size));
+                    Log.i(TAG, String.format("Skip: stuffing data %d bytes", adaptation_field_data.adaptation_field_length - 1));
+                    packet.tsPacketSkipReadByte(adaptation_field_data.adaptation_field_length - 1); // adaptation_field_length = sizeof(adaptation parameter) + sizeof(stuffing_data)
                 }
                 else{
-                    Log.i(TAG, "Info: PSI section (PAT) without pointer_field");
+                    packet.packet_info.payload_size = 184;
                 }
 
-                // Parse PAT
-                packet.readPat(pat);
-                pat.printPat();
-            }
-
-            // Detect and parse PMT
-            if(pat.channel_number > 1){
-                Log.e(TAG, "The number of channel > 1");
-            }
-            else if(pat.channel_number < 1){
-                Log.e(TAG, "The number of channel < 1");
-            }
-
-            for(int i = 0; i < pat.channel_number; i++){
-                if(packet.header_info.pid == pat.program_info_array[i].program_map_pid){
-                    Log.i(TAG, String.format("Detect PMT, PID = %d", packet.header_info.pid));
+                // Parse pointer_field for PAT
+                if(packet.header_info.pid == Constant.PID_PAT){
+                    Log.i(TAG, "PSI type: PAT");
                     if(packet.header_info.payload_unit_start_indicator == 1){
-                        Log.i(TAG, "Info: parse pointer_field for PSI section (PMT)");
+                        Log.i(TAG, "Info: parse pointer_field for PSI section (PAT)");
                         packet.readPsiPointer(psi_pointer_data);
                         psi_pointer_data.printPsiPointer();
                     }
                     else{
-                        Log.i(TAG, "Info: PSI section (PMT) without pointer_field");
+                        Log.i(TAG, "Info: PSI section (PAT) without pointer_field");
                     }
 
-                    packet.readPmt(pmt);
-                    detect_pcr_pid = 1;
-                    pmt.printPmt();
-                    if(pmt.program_info_length > 0){
-                        // TODO: parse descriptor
-                        Log.e(TAG, "TODO: parse descriptor");
-                        Log.e(TAG, "Skip parse descriptor");
-                        packet.tsPacketSkipReadByte(pmt.program_info_length);
-                    }
-
-                    // read stream info from PMT
-                    while(pmt.unread_size >= 9) // 9: stream_info physical data size (40 bits) + CRC32 (32 bits)
-                    {
-                        // reset StreamInfoBuf
-                        stream_info_buf = new PmtStreamInfo();
-                        packet.readPmtStreamInfo(stream_info_buf, pmt);
-                        stream_info_buf.printPmtStreamInfo();
-                        if(stream_info_buf.es_info_length > 0){
-                            // TODO: parse descriptor, use skip as workaround
-                            Log.e(TAG, "Skip parse descriptor");
-                            packet.tsPacketSkipReadByte(stream_info_buf.es_info_length);
-                            pmt.unread_size = pmt.unread_size - stream_info_buf.es_info_length;
-                        }
-
-                        // store stream info for H264
-                        if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_H264){
-                            PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_h264);
-                            Log.i(TAG, String.format("Detect Video Stream: H.264, PID = %d", stream_info_h264.elementary_pid));
-                            detect_h264_stream = 1;
-                        }
-
-                        // store stream info for AAC
-                        if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_AAC){
-                            PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_aac);
-                            Log.i(TAG, String.format("Detect Audio Stream: AAC, PID = %d", stream_info_aac.elementary_pid));
-                            detect_aac_stream = 1;
-                        }
-                    }
-                    if(pmt.unread_size == 4){
-                        packet.readPmtCrc32(pmt);
-                    }
-                    else{
-                        Log.e(TAG, String.format("pmt.unread_size = %d is incorrect, parse PMT failed...", pmt.unread_size));
-                    }
-                    break; // Once find PMT, stop detect PMT in this packet because one packet only can include one PMT
+                    // Parse PAT
+                    packet.readPat(pat);
+                    pat.printPat();
                 }
-            }
 
-            // skip process PCR
-            if(detect_pcr_pid == 1 && packet.header_info.pid == pmt.pcr_pid){
-                Log.e(TAG, "Skip: PCR Packet");
-            }
-
-            // process PES packet with H.264 stream
-            if(detect_h264_stream == 1 && packet.header_info.pid == stream_info_h264.elementary_pid){
-                Log.i(TAG, "H.264 Packet");
-
-                if(detect_pes_start == 1){
-
+                // Detect and parse PMT
+                if(pat.channel_number > 1){
+                    Log.e(TAG, "The number of channel > 1");
                 }
-                else{
-                    if(packet.ReadBits(packet, 24) == Constant.PES_PACKET_START_CODE &&
-                            packet.header_info.payload_unit_start_indicator == 1){
-                        Log.i(TAG, "Found PES start code!");
-                        detect_pes_start = 1;
-                        ret = packet.readPesHeader(pes_header_buf);
-                        if(ret == 0){
-                            pes_header_buf.printPesHeader();
-                            // skip the optional fields and any stuffing bytes contained in this PES packet header, include PTS, DTS
-                            packet.tsPacketSkipReadByte(pes_header_buf.pes_header_data_length);
-                            // unread bytes for TS packet = the size of packet - current bit / 8
-                            ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
-                            Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+                else if(pat.channel_number < 1){
+                    Log.e(TAG, "The number of channel < 1");
+                }
 
-                            if(pes_header_buf.pes_packet_length != 0){
-                                pes_separate_way = SEPARATE_PES_BY_PES_LENGTH;
-                                Log.i(TAG, String.format("Separate PES by PES packet length = %d", pes_header_buf.pes_packet_length));
-                                // PES payload size = pes_packet_length - sizeof(stream_id) - sizeof(pes_packet_length) - pes_header_data_length
-                                pes_payload_size = pes_header_buf.pes_packet_length - 3 - pes_header_buf.pes_header_data_length;
-                                pes_packet = new PesPayload(pes_payload_size);
-                                Log.i(TAG, String.format("PES payload size  = %d", pes_packet.pes_payload_length));
-                                packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
-                                pes_packet.printRawData();
-
-                            }
-                            else{
-                                pes_separate_way = SEPARATE_PES_BY_PES_START_CODE;
-                            }
+                for(int i = 0; i < pat.channel_number; i++){
+                    if(packet.header_info.pid == pat.program_info_array[i].program_map_pid){
+                        Log.i(TAG, String.format("Detect PMT, PID = %d", packet.header_info.pid));
+                        if(packet.header_info.payload_unit_start_indicator == 1){
+                            Log.i(TAG, "Info: parse pointer_field for PSI section (PMT)");
+                            packet.readPsiPointer(psi_pointer_data);
+                            psi_pointer_data.printPsiPointer();
                         }
                         else{
-                            detect_pes_start = 0;
-                            Log.e(TAG, "Skip Unsupported PES");
+                            Log.i(TAG, "Info: PSI section (PMT) without pointer_field");
                         }
 
+                        packet.readPmt(pmt);
+                        detect_pcr_pid = 1;
+                        pmt.printPmt();
+                        if(pmt.program_info_length > 0){
+                            // TODO: parse descriptor
+                            Log.e(TAG, "TODO: parse descriptor");
+                            Log.e(TAG, "Skip parse descriptor");
+                            packet.tsPacketSkipReadByte(pmt.program_info_length);
+                        }
+
+                        // read stream info from PMT
+                        while(pmt.unread_size >= 9) // 9: stream_info physical data size (40 bits) + CRC32 (32 bits)
+                        {
+                            // reset StreamInfoBuf
+                            stream_info_buf = new PmtStreamInfo();
+                            packet.readPmtStreamInfo(stream_info_buf, pmt);
+                            stream_info_buf.printPmtStreamInfo();
+                            if(stream_info_buf.es_info_length > 0){
+                                // TODO: parse descriptor, use skip as workaround
+                                Log.e(TAG, "Skip parse descriptor");
+                                packet.tsPacketSkipReadByte(stream_info_buf.es_info_length);
+                                pmt.unread_size = pmt.unread_size - stream_info_buf.es_info_length;
+                            }
+
+                            // store stream info for H264
+                            if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_H264){
+                                PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_h264);
+                                Log.i(TAG, String.format("Detect Video Stream: H.264, PID = %d", stream_info_h264.elementary_pid));
+                                detect_h264_stream = 1;
+                            }
+
+                            // store stream info for AAC
+                            if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_AAC){
+                                PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_aac);
+                                Log.i(TAG, String.format("Detect Audio Stream: AAC, PID = %d", stream_info_aac.elementary_pid));
+                                detect_aac_stream = 1;
+                            }
+                        }
+                        if(pmt.unread_size == 4){
+                            packet.readPmtCrc32(pmt);
+                        }
+                        else{
+                            Log.e(TAG, String.format("pmt.unread_size = %d is incorrect, parse PMT failed...", pmt.unread_size));
+                        }
+                        break; // Once find PMT, stop detect PMT in this packet because one packet only can include one PMT
+                    }
+                }
+
+                // skip process PCR
+                if(detect_pcr_pid == 1 && packet.header_info.pid == pmt.pcr_pid){
+                    Log.e(TAG, "Skip: PCR Packet");
+                }
+
+                // process PES packet with H.264 stream
+                if(detect_h264_stream == 1 && packet.header_info.pid == stream_info_h264.elementary_pid){
+                    Log.i(TAG, "H.264 Packet");
+
+                    if(detect_pes_start == 1){
+                        if(pes_separate_way == SEPARATE_PES_BY_PES_START_CODE){
+                            // TODO: implementation
+                        }
+
+                        Log.i(TAG, "Copy PES fragment");
+                        ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
+                        Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+                        if(ts_unread_size + pes_packet.copied_byte > allocate_pes_size){
+                            // TODO: implementation
+                        }
+                        packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
+                        //pes_packet.printRawData();
+                        Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
+                    }
+                    else{
+                        if(packet.ReadBits(packet, 24) == Constant.PES_PACKET_START_CODE &&
+                                packet.header_info.payload_unit_start_indicator == 1){
+                            Log.i(TAG, "Found PES start code!");
+                            detect_pes_start = 1;
+                            ret = packet.readPesHeader(pes_header_buf);
+                            if(ret == 0){
+                                pes_header_buf.printPesHeader();
+                                // skip the optional fields and any stuffing bytes contained in this PES packet header, include PTS, DTS
+                                packet.tsPacketSkipReadByte(pes_header_buf.pes_header_data_length);
+                                // unread bytes for TS packet = the size of packet - current bit / 8
+                                ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
+                                Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+
+                                if(pes_header_buf.pes_packet_length != 0){
+                                    pes_separate_way = SEPARATE_PES_BY_PES_LENGTH;
+                                    Log.i(TAG, String.format("Separate PES by PES packet length = %d", pes_header_buf.pes_packet_length));
+                                    // PES payload size = pes_packet_length - sizeof(stream_id) - sizeof(pes_packet_length) - pes_header_data_length
+                                    pes_payload_size = pes_header_buf.pes_packet_length - 3 - pes_header_buf.pes_header_data_length;
+                                    pes_packet = new PesPayload(pes_payload_size);
+                                    Log.i(TAG, String.format("PES payload size  = %d", pes_packet.pes_payload_length));
+                                    packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
+                                    //pes_packet.printRawData();
+                                    Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
+                                }
+                                else{
+                                    pes_separate_way = SEPARATE_PES_BY_PES_START_CODE;
+                                }
+                            }
+                            else{
+                                detect_pes_start = 0;
+                                Log.e(TAG, "Skip Unsupported PES");
+                            }
+                        }
+                    }
+
+                    // Parse PES packet successfully
+                    if((pes_packet.copied_byte == pes_packet.pes_payload_length) && (pes_separate_way == SEPARATE_PES_BY_PES_LENGTH)){
+                        Log.i(TAG, "Parse one PES packet complete!");
+                        detect_pes_start = 0;
+                        // send data to decoder
+                        //loop_ctrl = false;
                     }
                 }
 
             }
-
-        }
-        else{
-            Log.e(TAG, "Read TS packet error!");
+            else if(ret == -2){
+                Log.e(TAG, "Read TS packet error!");
+                loop_ctrl = false;
+                break;
+            }
+            else if(ret == -1){
+                Log.i(TAG, "Read complete");
+                loop_ctrl = false;
+                break;
+            }
+            else{
+                Log.e(TAG, "Read TS packet error!");
+                loop_ctrl = false;
+                break;
+            }
         }
     }
 }
