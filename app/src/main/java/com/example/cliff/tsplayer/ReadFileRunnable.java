@@ -1,13 +1,19 @@
 package com.example.cliff.tsplayer;
 
+import android.os.Environment;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
+import android.view.SurfaceView;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
+import static com.example.cliff.tsplayer.Constant.PES_PACKET_START_CODE;
 import static com.example.cliff.tsplayer.Constant.SEPARATE_PES_BY_PES_LENGTH;
 import static com.example.cliff.tsplayer.Constant.SEPARATE_PES_BY_PES_START_CODE;
 import static com.example.cliff.tsplayer.Constant.SPEC_MAX_PES_LENGTH;
@@ -24,6 +30,13 @@ public class ReadFileRunnable implements Runnable {
     private FileInputStream fileInputStram;
     private BufferedInputStream fileInputBuf;
 
+    FileOutputStream fos = null;
+    private String DumpVidePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() +"/output.264";;
+
+    H264DecoderRunnable decodeNaluWork;
+    HandlerThread handlerThread;
+    Handler handler;
+
     // dynamic data buffer
     TsPacket packet;
     PsiPointer psi_pointer_data;
@@ -32,10 +45,13 @@ public class ReadFileRunnable implements Runnable {
     PesHeader pes_header_buf;
     PesPayload pes_packet;
 
+    byte[] pes_data_buf;
+
     // permanent
     ProgramAssociationTable pat;
     ProgramMapTable pmt;
     PmtStreamInfo stream_info_h264, stream_info_aac;
+    SurfaceView mSurfaceView;
 
     // flag
     int detect_h264_stream = 0;
@@ -58,6 +74,16 @@ public class ReadFileRunnable implements Runnable {
         this.stream_info_aac = stream_info_aac;
         this.adaptation_field_data = new AdaptationField();
         this.pes_header_buf = new PesHeader();
+
+
+        handlerThread = new HandlerThread("DecodeHandlerThread");
+        handlerThread.start();
+        handler = new Handler(handlerThread.getLooper());
+    }
+
+    public void setSurfaceView(SurfaceView surfaceView){
+        mSurfaceView = surfaceView;
+        decodeNaluWork = new H264DecoderRunnable(mSurfaceView);
     }
 
     public int openFile(){
@@ -75,6 +101,11 @@ public class ReadFileRunnable implements Runnable {
         else{
             Log.e(TAG, "Open file failed: " + inputPath);
             return -1;
+        }
+        try {
+            fos = new FileOutputStream(DumpVidePath);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
         return 0;
     }
@@ -103,15 +134,15 @@ public class ReadFileRunnable implements Runnable {
             if(ret == 0){
                 //packet.printRawData();
                 packet.readHeaderInfo();
-                packet.printHeaderInfo();
+                //packet.printHeaderInfo();
 
                 if(packet.header_info.adaptation_field_control == 2 ||
                         packet.header_info.adaptation_field_control == 3) {
                     packet.readAdaptationField(adaptation_field_data);
-                    adaptation_field_data.printAdaptationField();
+                    //adaptation_field_data.printAdaptationField();
                     packet.packet_info.payload_size = 184 - adaptation_field_data.adaptation_field_length - 1; // 1: minus sizeof(adaptation_field_length)
-                    Log.i(TAG, String.format("TS packet payload size = %d", packet.packet_info.payload_size));
-                    Log.i(TAG, String.format("Skip: stuffing data %d bytes", adaptation_field_data.adaptation_field_length - 1));
+                    //Log.i(TAG, String.format("TS packet payload size = %d", packet.packet_info.payload_size));
+                    //Log.i(TAG, String.format("Skip: stuffing data %d bytes", adaptation_field_data.adaptation_field_length - 1));
                     packet.tsPacketSkipReadByte(adaptation_field_data.adaptation_field_length - 1); // adaptation_field_length = sizeof(adaptation parameter) + sizeof(stuffing_data)
                 }
                 else{
@@ -124,7 +155,7 @@ public class ReadFileRunnable implements Runnable {
                     if(packet.header_info.payload_unit_start_indicator == 1){
                         Log.i(TAG, "Info: parse pointer_field for PSI section (PAT)");
                         packet.readPsiPointer(psi_pointer_data);
-                        psi_pointer_data.printPsiPointer();
+                        //psi_pointer_data.printPsiPointer();
                     }
                     else{
                         Log.i(TAG, "Info: PSI section (PAT) without pointer_field");
@@ -132,7 +163,7 @@ public class ReadFileRunnable implements Runnable {
 
                     // Parse PAT
                     packet.readPat(pat);
-                    pat.printPat();
+                    //pat.printPat();
                 }
 
                 // Detect and parse PMT
@@ -149,7 +180,7 @@ public class ReadFileRunnable implements Runnable {
                         if(packet.header_info.payload_unit_start_indicator == 1){
                             Log.i(TAG, "Info: parse pointer_field for PSI section (PMT)");
                             packet.readPsiPointer(psi_pointer_data);
-                            psi_pointer_data.printPsiPointer();
+                            //psi_pointer_data.printPsiPointer();
                         }
                         else{
                             Log.i(TAG, "Info: PSI section (PMT) without pointer_field");
@@ -157,7 +188,7 @@ public class ReadFileRunnable implements Runnable {
 
                         packet.readPmt(pmt);
                         detect_pcr_pid = 1;
-                        pmt.printPmt();
+                        //pmt.printPmt();
                         if(pmt.program_info_length > 0){
                             // TODO: parse descriptor
                             Log.e(TAG, "TODO: parse descriptor");
@@ -171,7 +202,7 @@ public class ReadFileRunnable implements Runnable {
                             // reset StreamInfoBuf
                             stream_info_buf = new PmtStreamInfo();
                             packet.readPmtStreamInfo(stream_info_buf, pmt);
-                            stream_info_buf.printPmtStreamInfo();
+                            //stream_info_buf.printPmtStreamInfo();
                             if(stream_info_buf.es_info_length > 0){
                                 // TODO: parse descriptor, use skip as workaround
                                 Log.e(TAG, "Skip parse descriptor");
@@ -205,55 +236,116 @@ public class ReadFileRunnable implements Runnable {
 
                 // skip process PCR
                 if(detect_pcr_pid == 1 && packet.header_info.pid == pmt.pcr_pid){
-                    Log.e(TAG, "Skip: PCR Packet");
+                    //Log.e(TAG, "Skip: PCR Packet");
                 }
 
                 // process PES packet with H.264 stream
                 if(detect_h264_stream == 1 && packet.header_info.pid == stream_info_h264.elementary_pid){
-                    Log.i(TAG, "H.264 Packet");
+                    //Log.i(TAG, "H.264 Packet");
 
                     if(detect_pes_start == 1){
                         if(pes_separate_way == SEPARATE_PES_BY_PES_START_CODE){
                             // TODO: implementation
+                            if(packet.ReadBits(packet, 24) == PES_PACKET_START_CODE &&
+                                    packet.header_info.payload_unit_start_indicator == 1){
+                                //Log.i(TAG, "Found next PES, separate it!");
+                                //Log.i(TAG, "Parse one PES packet complete!");
+
+                                // check NALU start code
+                                if(pes_packet.pes_data[0] != 0x00 ||
+                                    pes_packet.pes_data[1] != 0x00 ||
+                                    pes_packet.pes_data[2] != 0x00 ||
+                                    pes_packet.pes_data[3] != 0x01){
+                                    Log.e(TAG, "Check NALU start code! (0x%08X)");
+                                }
+
+
+                                // write data to file or send to decoder
+
+                                decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.copied_byte);
+                                //decodeNaluWork.setNalu(pes_packet.pes_data);
+                                decodeNaluWork.decede();
+
+                                /*
+                                try {
+                                    fos.write(pes_packet.pes_data, 0, pes_packet.copied_byte);
+                                    fos.flush();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                */
+
+                                pes_packet.copied_byte = 0;
+
+                                ret = packet.readPesHeader(pes_header_buf);
+                                if(ret == 0){
+                                    //pes_header_buf.printPesHeader();
+                                    // skip the optional fields and any stuffing bytes contained in this PES packet header, include PTS, DTS
+                                    packet.tsPacketSkipReadByte(pes_header_buf.pes_header_data_length);
+                                    // unread bytes for TS packet = the size of packet - current bit / 8
+                                    ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
+                                    //Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+                                }
+                                else{
+                                    detect_pes_start = 0;
+                                    Log.e(TAG, "Skip Unsupported PES");
+                                }
+                                //system("PAUSE");
+                            }
+                        else{
+                                //Log.i(TAG, "Seek back 3 bytes");
+                                packet.packet_info.current_bit = packet.packet_info.current_bit - 24;
+                            }
                         }
 
-                        Log.i(TAG, "Copy PES fragment");
+                        //Log.i(TAG, "Copy PES fragment");
                         ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
-                        Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+                        //Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
                         if(ts_unread_size + pes_packet.copied_byte > allocate_pes_size){
                             // TODO: implementation
+                            Log.e(TAG, String.format("Expected PES packet is %d, over allocated memory size %d", ts_unread_size + pes_packet.copied_byte, allocate_pes_size));
+                            allocate_pes_size = allocate_pes_size*2;
+                            Log.e(TAG, String.format("Re-allocate PES memory size: %d", allocate_pes_size));
+                            pes_data_buf = pes_packet.pes_data;
+                            pes_packet.pes_data = new byte[allocate_pes_size];
+                            System.arraycopy(pes_data_buf, 0, pes_packet.pes_data, 0, pes_packet.copied_byte);
+                            pes_data_buf = null;
                         }
                         packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
                         //pes_packet.printRawData();
-                        Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
+                        //Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
                     }
                     else{
-                        if(packet.ReadBits(packet, 24) == Constant.PES_PACKET_START_CODE &&
+                        if(packet.ReadBits(packet, 24) == PES_PACKET_START_CODE &&
                                 packet.header_info.payload_unit_start_indicator == 1){
-                            Log.i(TAG, "Found PES start code!");
+                            //Log.i(TAG, "Found PES start code!");
                             detect_pes_start = 1;
                             ret = packet.readPesHeader(pes_header_buf);
                             if(ret == 0){
-                                pes_header_buf.printPesHeader();
+                                //pes_header_buf.printPesHeader();
                                 // skip the optional fields and any stuffing bytes contained in this PES packet header, include PTS, DTS
                                 packet.tsPacketSkipReadByte(pes_header_buf.pes_header_data_length);
                                 // unread bytes for TS packet = the size of packet - current bit / 8
                                 ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
-                                Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+                                //Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
 
                                 if(pes_header_buf.pes_packet_length != 0){
                                     pes_separate_way = SEPARATE_PES_BY_PES_LENGTH;
-                                    Log.i(TAG, String.format("Separate PES by PES packet length = %d", pes_header_buf.pes_packet_length));
+                                    //Log.i(TAG, String.format("Separate PES by PES packet length = %d", pes_header_buf.pes_packet_length));
                                     // PES payload size = pes_packet_length - sizeof(stream_id) - sizeof(pes_packet_length) - pes_header_data_length
                                     pes_payload_size = pes_header_buf.pes_packet_length - 3 - pes_header_buf.pes_header_data_length;
                                     pes_packet = new PesPayload(pes_payload_size);
-                                    Log.i(TAG, String.format("PES payload size  = %d", pes_packet.pes_payload_length));
+                                    //Log.i(TAG, String.format("PES payload size  = %d", pes_packet.pes_payload_length));
                                     packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
                                     //pes_packet.printRawData();
-                                    Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
+                                    //Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
                                 }
                                 else{
                                     pes_separate_way = SEPARATE_PES_BY_PES_START_CODE;
+                                    //Log.i(TAG, String.format("Separate PES by PES start code for PES packet length = %d", pes_header_buf.pes_packet_length));
+                                    pes_packet = new PesPayload(allocate_pes_size);
+                                    packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
+                                    //Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
                                 }
                             }
                             else{
@@ -265,9 +357,27 @@ public class ReadFileRunnable implements Runnable {
 
                     // Parse PES packet successfully
                     if((pes_packet.copied_byte == pes_packet.pes_payload_length) && (pes_separate_way == SEPARATE_PES_BY_PES_LENGTH)){
-                        Log.i(TAG, "Parse one PES packet complete!");
+                        //Log.i(TAG, "Parse one PES packet complete!");
                         detect_pes_start = 0;
+
                         // send data to decoder
+                        decodeNaluWork.setNalu(pes_packet.pes_data);
+                        decodeNaluWork.decede();
+                        //handler.post(decodeNaluWork);
+
+
+                        /*
+                        // write to file
+                        try {
+                            fos.write(pes_packet.pes_data, 0, pes_packet.pes_payload_length);
+                            fos.flush();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        */
+
+                        pes_packet.copied_byte = 0;
+                        pes_packet.pes_payload_length = 0;
                         //loop_ctrl = false;
                     }
                 }
@@ -280,6 +390,11 @@ public class ReadFileRunnable implements Runnable {
             }
             else if(ret == -1){
                 Log.i(TAG, "Read complete");
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 loop_ctrl = false;
                 break;
             }

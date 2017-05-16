@@ -1,0 +1,18 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" tools:context=".MainActivity">
+    <item android:id="@+id/play_mi" android:title="Play Mi.ts"
+        android:orderInCategory="100" android:showAsAction="never"
+        tools:ignore="AppCompatResource" />
+    <item android:id="@+id/play_acer" android:title="Play Acer.ts"
+        android:orderInCategory="100" android:showAsAction="never"
+        tools:ignore="AppCompatResource" />
+    <item android:id="@+id/play_doccam" android:title="Play DocCam.ts"
+        android:orderInCategory="100" android:showAsAction="never"
+        tools:ignore="AppCompatResource" />
+    <item android:id="@+id/action_test" android:title="Test"
+        android:orderInCategory="100" android:showAsAction="never"
+        tools:ignore="AppCompatResource" />
+    <item android:id="@+id/change_opengl" android:title="GLSurface"
+        android:orderInCategory="100" android:showAsAction="never"
+        tools:ignore="AppCompatResource" />
+</menu>

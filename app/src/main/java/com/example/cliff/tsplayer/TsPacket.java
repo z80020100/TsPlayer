@@ -165,11 +165,11 @@ public class TsPacket{
     public void tsPacketSkipReadByte(int skip_byte){
         int skip_bits = skip_byte*8;
         if(skip_byte > 0){
-            Log.e(TAG,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            Log.i(TAG, String.format("Skip %d byte(s)", skip_byte));
+            //Log.e(TAG,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            //Log.i(TAG, String.format("Skip %d byte(s)", skip_byte));
             ReadBits(this, skip_bits);
-            Log.i(TAG, String.format("Seek current bit to %d", packet_info.current_bit));
-            Log.e(TAG,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            //Log.i(TAG, String.format("Seek current bit to %d", packet_info.current_bit));
+            //Log.e(TAG,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
     }
 
@@ -303,7 +303,7 @@ public class TsPacket{
     }
 
     void copyPesPayloadFromTs(PesPayload pes_packet, int source_start_byte, int copy_size){
-        Log.i(TAG, String.format("Copy %d bytes data\nfrom TS packet position: %d\nto PES packet position: %d", copy_size, source_start_byte, pes_packet.copied_byte));
+        //Log.i(TAG, String.format("Copy %d bytes data\nfrom TS packet position: %d\nto PES packet position: %d", copy_size, source_start_byte, pes_packet.copied_byte));
         System.arraycopy(this.ts_data, source_start_byte, pes_packet.pes_data, pes_packet.copied_byte, copy_size);
         pes_packet.copied_byte = pes_packet.copied_byte + copy_size;
     }
