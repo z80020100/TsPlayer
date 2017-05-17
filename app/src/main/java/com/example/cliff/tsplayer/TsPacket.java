@@ -171,6 +171,9 @@ public class TsPacket{
             //Log.i(TAG, String.format("Seek current bit to %d", packet_info.current_bit));
             //Log.e(TAG,"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
+        else{
+            packet_info.current_bit = packet_info.current_bit + skip_bits;
+        }
     }
 
     public void readPsiPointer(PsiPointer psi_pointer_data){
