@@ -9,7 +9,7 @@
     <item android:id="@+id/play_doccam" android:title="Play DocCam.ts"
         android:orderInCategory="100" android:showAsAction="never"
         tools:ignore="AppCompatResource" />
-    <item android:id="@+id/action_test" android:title="Test"
+    <item android:id="@+id/play_dump" android:title="Play Output.ts"
         android:orderInCategory="100" android:showAsAction="never"
         tools:ignore="AppCompatResource" />
     <item android:id="@+id/change_opengl" android:title="GLSurface"

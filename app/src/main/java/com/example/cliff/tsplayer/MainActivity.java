@@ -71,7 +71,17 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_test) {
+        if (id == R.id.play_dump) {
+            inputPath = Environment.getExternalStorageDirectory().getPath() + "/Download/output.ts";
+            pat = new ProgramAssociationTable();
+            pmt = new ProgramMapTable();
+            stream_info_h264 = new PmtStreamInfo();
+            stream_info_aac = new PmtStreamInfo();
+
+            readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat, pmt, stream_info_h264, stream_info_aac);
+            ret = readFileWork.openFile();
+            readFileWork.setSurfaceView(mSurfaceView);
+            handler.post(readFileWork);
             return true;
         }
 
