@@ -8,6 +8,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "Cliff";
@@ -72,6 +73,9 @@ public class MainActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.play_dump) {
+            if(readFileWork != null){
+                readFileWork.stop();
+            }
             inputPath = Environment.getExternalStorageDirectory().getPath() + "/Download/output.ts";
             pat = new ProgramAssociationTable();
             pmt = new ProgramMapTable();
@@ -80,28 +84,42 @@ public class MainActivity extends AppCompatActivity {
 
             readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat, pmt, stream_info_h264, stream_info_aac);
             ret = readFileWork.openFile();
-            readFileWork.setSurfaceView(mSurfaceView);
-            handler.post(readFileWork);
+            if(ret == 0){
+                readFileWork.setSurfaceView(mSurfaceView);
+                handler.post(readFileWork);
+            }
+            else{
+                Toast.makeText(this, "Open file: " + inputPath + "failed!", Toast.LENGTH_SHORT).show();
+            }
             return true;
         }
 
         if(id == R.id.play_doccam){
-            if(ret >= 0){
-                inputPath = Environment.getExternalStorageDirectory().getPath() + "/DocCam.ts";
-                pat = new ProgramAssociationTable();
-                pmt = new ProgramMapTable();
-                stream_info_h264 = new PmtStreamInfo();
-                stream_info_aac = new PmtStreamInfo();
+            if(readFileWork != null){
+                readFileWork.stop();
+            }
+            inputPath = Environment.getExternalStorageDirectory().getPath() + "/DocCam.ts";
+            pat = new ProgramAssociationTable();
+            pmt = new ProgramMapTable();
+            stream_info_h264 = new PmtStreamInfo();
+            stream_info_aac = new PmtStreamInfo();
 
-                readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat, pmt, stream_info_h264, stream_info_aac);
-                ret = readFileWork.openFile();
+            readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat, pmt, stream_info_h264, stream_info_aac);
+            ret = readFileWork.openFile();
+            if(ret == 0){
                 readFileWork.setSurfaceView(mSurfaceView);
                 handler.post(readFileWork);
+            }
+            else{
+                Toast.makeText(this, "Open file: " + inputPath + "failed!", Toast.LENGTH_SHORT).show();
             }
             return true;
         }
 
         if(id == R.id.play_mi){
+            if(readFileWork != null){
+                readFileWork.stop();
+            }
             inputPath = Environment.getExternalStorageDirectory().getPath() + "/Mi.ts";
             pat = new ProgramAssociationTable();
             pmt = new ProgramMapTable();
@@ -110,12 +128,20 @@ public class MainActivity extends AppCompatActivity {
 
             readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat, pmt, stream_info_h264, stream_info_aac);
             ret = readFileWork.openFile();
-            readFileWork.setSurfaceView(mSurfaceView);
-            handler.post(readFileWork);
+            if(ret == 0){
+                readFileWork.setSurfaceView(mSurfaceView);
+                handler.post(readFileWork);
+            }
+            else{
+                Toast.makeText(this, "Open file: " + inputPath + "failed!", Toast.LENGTH_SHORT).show();
+            }
             return true;
         }
 
         if(id == R.id.play_acer){
+            if(readFileWork != null){
+                readFileWork.stop();
+            }
             inputPath = Environment.getExternalStorageDirectory().getPath() + "/Acer.ts";
             pat = new ProgramAssociationTable();
             pmt = new ProgramMapTable();
@@ -124,13 +150,13 @@ public class MainActivity extends AppCompatActivity {
 
             readFileWork = new ReadFileRunnable(inputPath, packet, psi_pointer_data, pat, pmt, stream_info_h264, stream_info_aac);
             ret = readFileWork.openFile();
-            readFileWork.setSurfaceView(mSurfaceView);
-            handler.post(readFileWork);
-            return true;
-        }
-
-        if(id == R.id.change_opengl){
-
+            if(ret == 0){
+                readFileWork.setSurfaceView(mSurfaceView);
+                handler.post(readFileWork);
+            }
+            else{
+                Toast.makeText(this, "Open file: " + inputPath + "failed!", Toast.LENGTH_SHORT).show();
+            }
             return true;
         }
 

@@ -42,12 +42,17 @@ public class H264DecoderRunnable{
         System.arraycopy(nalu_data, 0, tmpByte, 0, nalu_size);
     }
 
+    public void closeMediaDecoder(){
+        mMeidaCodec.stop();
+        mMeidaCodec.release();
+    }
+
     public void configMediaDecoder(){
         if(Build.VERSION.SDK_INT > 15) {
             try {
                 mMeidaCodec = MediaCodec.createDecoderByType("video/avc");
-                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1280, 720);
-                //mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 0);
+                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+                mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 0);
                 mMeidaCodec.configure(mediaFormat, mSurfaceView.getHolder().getSurface(), null, 0);
                 mMeidaCodec.setVideoScalingMode(MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
                 mMeidaCodec.start();
@@ -58,7 +63,6 @@ public class H264DecoderRunnable{
             }
         }
     }
-
 
     public void decede() {
         framType = tmpByte[4]&0x1F;

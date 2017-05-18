@@ -12,7 +12,4 @@
     <item android:id="@+id/play_dump" android:title="Play Output.ts"
         android:orderInCategory="100" android:showAsAction="never"
         tools:ignore="AppCompatResource" />
-    <item android:id="@+id/change_opengl" android:title="GLSurface"
-        android:orderInCategory="100" android:showAsAction="never"
-        tools:ignore="AppCompatResource" />
 </menu>

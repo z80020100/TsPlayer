@@ -445,5 +445,15 @@ public class ReadFileRunnable implements Runnable {
                 break;
             }
         }
+        decodeNaluWork.closeMediaDecoder();
+    }
+
+    public void stop(){
+        loop_ctrl = false;
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
