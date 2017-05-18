@@ -63,6 +63,7 @@ public class ReadFileRunnable implements Runnable {
     private int readBytes, ts_unread_size, pes_payload_size, allocate_pes_size = SPEC_MAX_PES_LENGTH;
     private int ret;
     public boolean loop_ctrl = true;
+    private int h264_continuity_cnt = -1;
 
     public ReadFileRunnable(String inputPath, TsPacket packet, PsiPointer psi_pointer_data, ProgramAssociationTable pat, ProgramMapTable pmt, PmtStreamInfo stream_info_h264, PmtStreamInfo stream_info_aac){
         this.inputPath = inputPath;
@@ -242,6 +243,32 @@ public class ReadFileRunnable implements Runnable {
                 // process PES packet with H.264 stream
                 if(detect_h264_stream == 1 && packet.header_info.pid == stream_info_h264.elementary_pid){
                     //Log.i(TAG, "H.264 Packet");
+                    if(h264_continuity_cnt == -1){
+                        h264_continuity_cnt = packet.header_info.continuity_counter;
+                    }
+                    else{
+                        if(packet.header_info.continuity_counter == 0 && h264_continuity_cnt == 15){
+                            h264_continuity_cnt = packet.header_info.continuity_counter;
+                        }
+                        else if(packet.header_info.continuity_counter != h264_continuity_cnt +1){
+                            Log.e(TAG, String.format("h264_continuity_cnt = %d, packet.header_info.continuity_counter = %d", h264_continuity_cnt, packet.header_info.continuity_counter));
+                            Log.e(TAG, "Loss RTP packet!");
+
+                            if(detect_pes_start == 1){
+                                Log.e(TAG, "Parse incomplete PES packet...");
+                                detect_pes_start = 0;
+                                // write data to file or send to decoder
+                                decodeNaluWork.setNalu(pes_packet.pes_data);
+                                decodeNaluWork.decede();
+                                pes_packet.copied_byte = 0;
+                                pes_packet.pes_payload_length = 0;
+                            }
+                            h264_continuity_cnt = packet.header_info.continuity_counter;
+                        }
+                        else{
+                            h264_continuity_cnt = packet.header_info.continuity_counter;
+                        }
+                    }
 
                     if(detect_pes_start == 1){
                         if(pes_separate_way == SEPARATE_PES_BY_PES_START_CODE){
@@ -311,7 +338,21 @@ public class ReadFileRunnable implements Runnable {
                             System.arraycopy(pes_data_buf, 0, pes_packet.pes_data, 0, pes_packet.copied_byte);
                             pes_data_buf = null;
                         }
-                        packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
+                        int expected_size = pes_packet.copied_byte + ts_unread_size;
+                        if(expected_size > pes_packet.pes_payload_length){
+                            Log.e(TAG, String.format("expected_size = %d,  pes_packet.pes_payload_length = %d", expected_size, pes_packet.pes_payload_length));
+                            Log.e(TAG, "Parse incomplete PES packet...");
+                            detect_pes_start = 0;
+                            // write data to file or send to decoder
+                            decodeNaluWork.setNalu(pes_packet.pes_data);
+                            decodeNaluWork.decede();
+                            pes_packet.copied_byte = 0;
+                            pes_packet.pes_payload_length = 0;
+                        }
+                        else{
+                            Log.i(TAG, String.format("expected_size = %d,  pes_packet.pes_payload_length = %d", expected_size, pes_packet.pes_payload_length));
+                            packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
+                        }
                         //pes_packet.printRawData();
                         //Log.i(TAG, String.format("PES payload copied bytes = %d", pes_packet.copied_byte));
                     }
