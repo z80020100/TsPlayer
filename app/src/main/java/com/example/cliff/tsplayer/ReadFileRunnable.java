@@ -152,9 +152,9 @@ public class ReadFileRunnable implements Runnable {
 
                 // Parse pointer_field for PAT
                 if(packet.header_info.pid == Constant.PID_PAT){
-                    Log.i(TAG, "PSI type: PAT");
+                    //Log.i(TAG, "PSI type: PAT");
                     if(packet.header_info.payload_unit_start_indicator == 1){
-                        Log.i(TAG, "Info: parse pointer_field for PSI section (PAT)");
+                        //Log.i(TAG, "Info: parse pointer_field for PSI section (PAT)");
                         packet.readPsiPointer(psi_pointer_data);
                         //psi_pointer_data.printPsiPointer();
                     }
@@ -177,9 +177,9 @@ public class ReadFileRunnable implements Runnable {
 
                 for(int i = 0; i < pat.channel_number; i++){
                     if(packet.header_info.pid == pat.program_info_array[i].program_map_pid){
-                        Log.i(TAG, String.format("Detect PMT, PID = %d", packet.header_info.pid));
+                        //Log.i(TAG, String.format("Detect PMT, PID = %d", packet.header_info.pid));
                         if(packet.header_info.payload_unit_start_indicator == 1){
-                            Log.i(TAG, "Info: parse pointer_field for PSI section (PMT)");
+                            //Log.i(TAG, "Info: parse pointer_field for PSI section (PMT)");
                             packet.readPsiPointer(psi_pointer_data);
                             //psi_pointer_data.printPsiPointer();
                         }
@@ -192,8 +192,8 @@ public class ReadFileRunnable implements Runnable {
                         //pmt.printPmt();
                         if(pmt.program_info_length > 0){
                             // TODO: parse descriptor
-                            Log.e(TAG, "TODO: parse descriptor");
-                            Log.e(TAG, "Skip parse descriptor");
+                            //Log.e(TAG, "TODO: parse descriptor");
+                            //Log.e(TAG, "Skip parse descriptor");
                             packet.tsPacketSkipReadByte(pmt.program_info_length);
                         }
 
@@ -206,7 +206,7 @@ public class ReadFileRunnable implements Runnable {
                             //stream_info_buf.printPmtStreamInfo();
                             if(stream_info_buf.es_info_length > 0){
                                 // TODO: parse descriptor, use skip as workaround
-                                Log.e(TAG, "Skip parse descriptor");
+                                //Log.e(TAG, "Skip parse descriptor");
                                 packet.tsPacketSkipReadByte(stream_info_buf.es_info_length);
                                 pmt.unread_size = pmt.unread_size - stream_info_buf.es_info_length;
                             }
@@ -214,14 +214,14 @@ public class ReadFileRunnable implements Runnable {
                             // store stream info for H264
                             if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_H264){
                                 PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_h264);
-                                Log.i(TAG, String.format("Detect Video Stream: H.264, PID = %d", stream_info_h264.elementary_pid));
+                                //Log.i(TAG, String.format("Detect Video Stream: H.264, PID = %d", stream_info_h264.elementary_pid));
                                 detect_h264_stream = 1;
                             }
 
                             // store stream info for AAC
                             if(stream_info_buf.stream_type == Constant.STREAM_TYPE_VIDEO_AAC){
                                 PmtStreamInfo.PmtStreamInfoCopy(stream_info_buf, stream_info_aac);
-                                Log.i(TAG, String.format("Detect Audio Stream: AAC, PID = %d", stream_info_aac.elementary_pid));
+                                //Log.i(TAG, String.format("Detect Audio Stream: AAC, PID = %d", stream_info_aac.elementary_pid));
                                 detect_aac_stream = 1;
                             }
                         }
@@ -258,8 +258,8 @@ public class ReadFileRunnable implements Runnable {
                                 Log.e(TAG, "Parse incomplete PES packet...");
                                 detect_pes_start = 0;
                                 // write data to file or send to decoder
-                                decodeNaluWork.setNalu(pes_packet.pes_data);
-                                decodeNaluWork.decede();
+                                //decodeNaluWork.setNalu(pes_packet.pes_data);
+                                //decodeNaluWork.decede();
                                 pes_packet.copied_byte = 0;
                                 pes_packet.pes_payload_length = 0;
                             }
@@ -293,14 +293,14 @@ public class ReadFileRunnable implements Runnable {
                                 //decodeNaluWork.setNalu(pes_packet.pes_data);
                                 decodeNaluWork.decede();
 
-                                /*
+
                                 try {
                                     fos.write(pes_packet.pes_data, 0, pes_packet.copied_byte);
                                     fos.flush();
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
-                                */
+
 
                                 pes_packet.copied_byte = 0;
 
@@ -328,7 +328,7 @@ public class ReadFileRunnable implements Runnable {
                         //Log.i(TAG, "Copy PES fragment");
                         ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
                         //Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
-                        if(ts_unread_size + pes_packet.copied_byte > allocate_pes_size){
+                        if(ts_unread_size + pes_packet.copied_byte > allocate_pes_size && pes_separate_way == SEPARATE_PES_BY_PES_START_CODE){
                             // TODO: implementation
                             Log.e(TAG, String.format("Expected PES packet is %d, over allocated memory size %d", ts_unread_size + pes_packet.copied_byte, allocate_pes_size));
                             allocate_pes_size = allocate_pes_size*2;
@@ -339,18 +339,18 @@ public class ReadFileRunnable implements Runnable {
                             pes_data_buf = null;
                         }
                         int expected_size = pes_packet.copied_byte + ts_unread_size;
-                        if(expected_size > pes_packet.pes_payload_length){
+                        if(expected_size > pes_packet.pes_payload_length && pes_separate_way == SEPARATE_PES_BY_PES_LENGTH){
                             Log.e(TAG, String.format("expected_size = %d,  pes_packet.pes_payload_length = %d", expected_size, pes_packet.pes_payload_length));
                             Log.e(TAG, "Parse incomplete PES packet...");
                             detect_pes_start = 0;
                             // write data to file or send to decoder
-                            decodeNaluWork.setNalu(pes_packet.pes_data);
-                            decodeNaluWork.decede();
+                            //decodeNaluWork.setNalu(pes_packet.pes_data);
+                            //decodeNaluWork.decede();
                             pes_packet.copied_byte = 0;
                             pes_packet.pes_payload_length = 0;
                         }
                         else{
-                            Log.i(TAG, String.format("expected_size = %d,  pes_packet.pes_payload_length = %d", expected_size, pes_packet.pes_payload_length));
+                            //Log.i(TAG, String.format("expected_size = %d,  pes_packet.pes_payload_length = %d", expected_size, pes_packet.pes_payload_length));
                             packet.copyPesPayloadFromTs(pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
                         }
                         //pes_packet.printRawData();
@@ -397,17 +397,15 @@ public class ReadFileRunnable implements Runnable {
                     }
 
                     // Parse PES packet successfully
-                    if((pes_packet.copied_byte == pes_packet.pes_payload_length) && (pes_separate_way == SEPARATE_PES_BY_PES_LENGTH)){
+                    if((pes_packet.copied_byte == pes_packet.pes_payload_length) && (pes_separate_way == SEPARATE_PES_BY_PES_LENGTH && pes_packet.pes_payload_length != 0)){
                         //Log.i(TAG, "Parse one PES packet complete!");
                         detect_pes_start = 0;
 
                         // send data to decoder
-                        decodeNaluWork.setNalu(pes_packet.pes_data);
+                        decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.pes_payload_length);
                         decodeNaluWork.decede();
                         //handler.post(decodeNaluWork);
 
-
-                        /*
                         // write to file
                         try {
                             fos.write(pes_packet.pes_data, 0, pes_packet.pes_payload_length);
@@ -415,7 +413,7 @@ public class ReadFileRunnable implements Runnable {
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-                        */
+
 
                         pes_packet.copied_byte = 0;
                         pes_packet.pes_payload_length = 0;
