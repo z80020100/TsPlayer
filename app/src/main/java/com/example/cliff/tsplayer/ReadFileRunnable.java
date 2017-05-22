@@ -56,6 +56,7 @@ public class ReadFileRunnable implements Runnable {
     ProgramMapTable pmt;
     PmtStreamInfo stream_info_h264, stream_info_aac;
     SurfaceView mSurfaceView;
+    AdtsHeader adts_header_data;
 
     // flag
     int detect_h264_stream = 0;
@@ -81,6 +82,7 @@ public class ReadFileRunnable implements Runnable {
         this.adaptation_field_data = new AdaptationField();
         this.pes_header_buf = new PesHeader();
         this.audio_pes_header_buf = new PesHeader();
+        adts_header_data = new AdtsHeader();
 
 
         handlerThread = new HandlerThread("DecodeHandlerThread");
@@ -453,7 +455,7 @@ public class ReadFileRunnable implements Runnable {
                             detect_aac_pes_start = 1;
                             ret = packet.readPesHeader(audio_pes_header_buf);
                             if(ret == 0){
-                                audio_pes_header_buf.printPesHeader();
+                                //audio_pes_header_buf.printPesHeader();
                                 // skip the optional fields and any stuffing bytes contained in this PES packet header, include PTS, DTS
                                 packet.tsPacketSkipReadByte(audio_pes_header_buf.pes_header_data_length);
                                 // unread bytes for TS packet = the size of packet - current bit / 8
@@ -487,6 +489,10 @@ public class ReadFileRunnable implements Runnable {
                         detect_aac_pes_start = 0;
                         // write data to file or send to decoder
                         try {
+                            adts_header_data.read_adts_fixed_header(audio_pes_packet.pes_data);
+                            adts_header_data.print_adts_fixed_header();
+                            adts_header_data.read_bit = 0;
+
                             audio_fos.write(audio_pes_packet.pes_data, 0, audio_pes_packet.pes_payload_length);
                             audio_fos.flush();
                         } catch (IOException e) {
