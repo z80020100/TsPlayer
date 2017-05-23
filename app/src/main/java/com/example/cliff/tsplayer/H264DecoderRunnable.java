@@ -14,7 +14,7 @@ import java.util.Arrays;
  * Created by CLIFF on 2017/5/15.
  */
 
-public class H264DecoderRunnable{
+public class H264DecoderRunnable implements Runnable{
     public static final String TAG = "Cliff";
 
     private MediaCodec mMeidaCodec;
@@ -81,34 +81,34 @@ public class H264DecoderRunnable{
     public void decede() {
         framType = tmpByte[4]&0x1F;
         if(framType != 0x01){
-            Log.i("Decode", "framType = " + framType);
-            Log.i("Decode", "tmpByte.length = " + tmpByte.length);
+            //Log.i("Decode", "framType = " + framType);
+            //Log.i("Decode", "tmpByte.length = " + tmpByte.length);
             //framType = tmpByte[sps.length+pps.length+4]&0x1F;
             //Log.i("Decode", "Check I frame type =  = " + framType);
 
             // Detect NALU, SPS, PPS
             for(int i = 0; i < tmpByte.length-3; i++){
                 if(tmpByte[i] == 0x00 && tmpByte[i+1] == 0x00 && tmpByte[i+2] == 0x00 && tmpByte[i+3] == 0x01){
-                    Log.i("NALU", "NAL start position = " + i);
+                    //Log.i("NALU", "NAL start position = " + i);
 
                     if(detect_sps == true){
                         detect_sps = false;
                         sps_end_pos = i;
                         sps = Arrays.copyOfRange(tmpByte, sps_start_pos, sps_end_pos);
-                        Log.i("Decode", "sps_end_pos = " + sps_end_pos);
+                        //Log.i("Decode", "sps_end_pos = " + sps_end_pos);
                     }
 
                     if(detect_pps == true){
                         detect_pps = false;
                         pps_end_pos = i;
                         pps = Arrays.copyOfRange(tmpByte, pps_start_pos, pps_end_pos);
-                        Log.i("Decode", "pps_end_pos = " + pps_end_pos);
+                        //Log.i("Decode", "pps_end_pos = " + pps_end_pos);
                     }
 
                     if(detect_key_frame == true){
                         detect_key_frame = false;
                         key_frame_end_pos = i;
-                        Log.i("Decode", "key_frame_end_pos = " + key_frame_end_pos);
+                        //Log.i("Decode", "key_frame_end_pos = " + key_frame_end_pos);
                     }
 
                     tempFrameType = tmpByte[i+4] & 0x1F;
@@ -116,7 +116,7 @@ public class H264DecoderRunnable{
                         if(tempFrameType == 0x07){
                             detect_sps = true;
                             sps_start_pos = i;
-                            Log.i("Decode", "sps_start_pos = " + sps_start_pos);
+                            //Log.i("Decode", "sps_start_pos = " + sps_start_pos);
                         }
                     }
 
@@ -124,14 +124,14 @@ public class H264DecoderRunnable{
                         if(tempFrameType == 0x08){
                             detect_pps = true;
                             pps_start_pos = i;
-                            Log.i("Decode", "pps_start_pos = " + pps_start_pos);
+                            //Log.i("Decode", "pps_start_pos = " + pps_start_pos);
                         }
                     }
 
                     if(tempFrameType == 5){
                         detect_key_frame = true;
                         key_frame_start_pos = i;
-                        Log.i("Decode", "key_frame_start_pos = " + key_frame_start_pos);
+                        //Log.i("Decode", "key_frame_start_pos = " + key_frame_start_pos);
                     }
                 }
 
@@ -276,5 +276,10 @@ public class H264DecoderRunnable{
             result += " ";
         }
         return result;
+    }
+
+    @Override
+    public void run() {
+        decede();
     }
 }

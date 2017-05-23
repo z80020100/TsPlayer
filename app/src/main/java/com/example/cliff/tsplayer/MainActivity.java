@@ -120,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
             if(readFileWork != null){
                 readFileWork.stop();
             }
-            inputPath = Environment.getExternalStorageDirectory().getPath() + "/Mi.ts";
+            inputPath = Environment.getExternalStorageDirectory().getPath() + "/Mi_audio.ts";
             pat = new ProgramAssociationTable();
             pmt = new ProgramMapTable();
             stream_info_h264 = new PmtStreamInfo();

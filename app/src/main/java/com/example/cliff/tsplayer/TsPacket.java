@@ -235,7 +235,7 @@ public class TsPacket{
     public void readPmtCrc32(ProgramMapTable pmt){
         pmt.crc_32 = ReadBits(this, 32);
         pmt.unread_size = pmt.unread_size - 4;
-        Log.i(TAG, String.format("PMT CRC32      = 0x%08X", pmt.crc_32));
+        //Log.i(TAG, String.format("PMT CRC32      = 0x%08X", pmt.crc_32));
     }
 
     int readAdaptationField(AdaptationField adaptation_field_data){

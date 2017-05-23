@@ -57,6 +57,7 @@ public class ReadFileRunnable implements Runnable {
     PmtStreamInfo stream_info_h264, stream_info_aac;
     SurfaceView mSurfaceView;
     AdtsHeader adts_header_data;
+    AacPlayer aacPlayerWork = null;
 
     // flag
     int detect_h264_stream = 0;
@@ -251,6 +252,7 @@ public class ReadFileRunnable implements Runnable {
 
                 // process PES packet with H.264 stream
                 if(detect_h264_stream == 1 && packet.header_info.pid == stream_info_h264.elementary_pid){
+                //if(false){
                     //Log.i(TAG, "H.264 Packet");
                     if(h264_continuity_cnt == -1){
                         h264_continuity_cnt = packet.header_info.continuity_counter;
@@ -302,14 +304,14 @@ public class ReadFileRunnable implements Runnable {
                                 //decodeNaluWork.setNalu(pes_packet.pes_data);
                                 decodeNaluWork.decede();
 
-
+/*
                                 try {
                                     fos.write(pes_packet.pes_data, 0, pes_packet.copied_byte);
                                     fos.flush();
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
-
+*/
 
                                 pes_packet.copied_byte = 0;
 
@@ -411,10 +413,11 @@ public class ReadFileRunnable implements Runnable {
                         detect_pes_start = 0;
 
                         // send data to decoder
-                        decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.pes_payload_length);
+                        //decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.pes_payload_length);
+                        decodeNaluWork.setNalu(pes_packet.pes_data);
                         decodeNaluWork.decede();
                         //handler.post(decodeNaluWork);
-
+/*
                         // write to file
                         try {
                             fos.write(pes_packet.pes_data, 0, pes_packet.pes_payload_length);
@@ -422,7 +425,7 @@ public class ReadFileRunnable implements Runnable {
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-
+*/
 
                         pes_packet.copied_byte = 0;
                         pes_packet.pes_payload_length = 0;
@@ -432,10 +435,10 @@ public class ReadFileRunnable implements Runnable {
 
                 // process PES packet with AAC stream
                 if(detect_aac_stream == 1 && packet.header_info.pid == stream_info_aac.elementary_pid){
-                    Log.i(TAG, "AAC Packet");
+                    //Log.i(TAG, "AAC Packet");
 
                     if(detect_aac_pes_start == 1){
-                        Log.i(TAG, "Copy AAC PES fragment");
+                        //Log.i(TAG, "Copy AAC PES fragment");
                         ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
                         expected_size = audio_pes_packet.copied_byte + ts_unread_size;
                         if(expected_size > audio_pes_packet.pes_payload_length){
@@ -443,15 +446,15 @@ public class ReadFileRunnable implements Runnable {
                             Log.i(TAG, "Error: expected_size > audio_pes_packet.pes_payload_length");
                         }
                         else{
-                            Log.i(TAG, String.format("expected_size = %d,  audio_pes_packet.pes_payload_length = %d", expected_size, audio_pes_packet.pes_payload_length));
+                            //Log.i(TAG, String.format("expected_size = %d,  audio_pes_packet.pes_payload_length = %d", expected_size, audio_pes_packet.pes_payload_length));
                             packet.copyPesPayloadFromTs(audio_pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
-                            Log.i(TAG, String.format("AAC PES payload copied bytes = %d", audio_pes_packet.copied_byte));
+                            //Log.i(TAG, String.format("AAC PES payload copied bytes = %d", audio_pes_packet.copied_byte));
                         }
                     }
                     else{
                         if(packet.ReadBits(packet, 24) == PES_PACKET_START_CODE &&
                                 packet.header_info.payload_unit_start_indicator == 1){
-                            Log.i(TAG, "Found AAC PES start code!\n");
+                            //Log.i(TAG, "Found AAC PES start code!\n");
                             detect_aac_pes_start = 1;
                             ret = packet.readPesHeader(audio_pes_header_buf);
                             if(ret == 0){
@@ -460,16 +463,16 @@ public class ReadFileRunnable implements Runnable {
                                 packet.tsPacketSkipReadByte(audio_pes_header_buf.pes_header_data_length);
                                 // unread bytes for TS packet = the size of packet - current bit / 8
                                 ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
-                                Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
+                                //Log.i(TAG, String.format("Unread size for TS packet = %d", ts_unread_size));
 
                                 if(audio_pes_header_buf.pes_packet_length != 0){
-                                    Log.i(TAG, String.format("Separate PES by PES packet length = %d", audio_pes_header_buf.pes_packet_length));
+                                    //Log.i(TAG, String.format("Separate PES by PES packet length = %d", audio_pes_header_buf.pes_packet_length));
                                     // PES payload size = pes_packet_length - sizeof(stream_id) - sizeof(pes_packet_length) - pes_header_data_length
                                     pes_payload_size = audio_pes_header_buf.pes_packet_length - 3 - audio_pes_header_buf.pes_header_data_length;
                                     audio_pes_packet = new PesPayload(pes_payload_size);
-                                    Log.i(TAG, String.format("AAC PES payload size  = %d", audio_pes_packet.pes_payload_length));
+                                    //Log.i(TAG, String.format("AAC PES payload size  = %d", audio_pes_packet.pes_payload_length));
                                     packet.copyPesPayloadFromTs(audio_pes_packet, packet.packet_info.current_bit/8, ts_unread_size);
-                                    Log.i(TAG, String.format("AAC PES payload copied bytes = %d", audio_pes_packet.copied_byte));
+                                    //Log.i(TAG, String.format("AAC PES payload copied bytes = %d", audio_pes_packet.copied_byte));
                                 }
                                 else{
                                     Log.e(TAG, "ERROR_AUDIO_PES_LENGTH");
@@ -485,26 +488,28 @@ public class ReadFileRunnable implements Runnable {
                     // Parse AAC PES packet successfully
                     if(audio_pes_packet.copied_byte == audio_pes_packet.pes_payload_length){
                         // There are 1024 samples in 1 AAC frame
-                        Log.i(TAG, "Parse one AAC PES packet complete!");
+                        //Log.i(TAG, "Parse one AAC PES packet complete!");
                         detect_aac_pes_start = 0;
+
+                        adts_header_data.read_adts_fixed_header(audio_pes_packet.pes_data);
+                        //adts_header_data.print_adts_fixed_header();
+                        adts_header_data.read_bit = 0;
+
+                        if(aacPlayerWork == null){
+                            aacPlayerWork = new AacPlayer(adts_header_data);
+                        }
+
+                        aacPlayerWork.setAacFrame(audio_pes_packet.pes_data);
+                        aacPlayerWork.play();
+/*
                         // write data to file or send to decoder
                         try {
-                            adts_header_data.read_adts_fixed_header(audio_pes_packet.pes_data);
-                            adts_header_data.print_adts_fixed_header();
-                            adts_header_data.read_bit = 0;
-
                             audio_fos.write(audio_pes_packet.pes_data, 0, audio_pes_packet.pes_payload_length);
                             audio_fos.flush();
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-
-                        /*
-                        // Parse ADTS
-                        read_adts_fixed_header(&adts_header_data, audio_pes_packet.pes_data);
-                        print_adts_fixed_header(adts_header_data);
-                        memset((void*)&adts_header_data, 0, sizeof(adts_header_data));
-                        */
+*/
                     }
                 }
 

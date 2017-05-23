@@ -64,7 +64,7 @@ public class AdtsHeader {
         return r;
     }
 
-    private class adts_fixed_header{
+    public class adts_fixed_header{
         int syncword;                 // 12 bits
         int id;                       // 1 bit
         int layer;                    // 2 bits, always be '00'
