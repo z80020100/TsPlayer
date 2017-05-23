@@ -9,6 +9,7 @@ import android.view.SurfaceView;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.LinkedBlockingDeque;
 
 /**
  * Created by CLIFF on 2017/5/15.
@@ -25,7 +26,7 @@ public class H264DecoderRunnable implements Runnable{
     int mCount = 0;
     int inputBufferIndex,outputBufferIndex;
     MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-    byte[] tmpByte;
+    byte[] tmpByte, tmpByte2;
     int framType;
     //boolean startKeyFrame = true;
 
@@ -40,6 +41,8 @@ public class H264DecoderRunnable implements Runnable{
     int sps_end_pos = -1, pps_end_pos = -1, key_frame_end_pos = -1;
     boolean detect_sps = false, detect_pps = false, detect_key_frame;
 
+    LinkedBlockingDeque<byte[]> fifo = new LinkedBlockingDeque<byte[]>();
+
     public H264DecoderRunnable(SurfaceView surfaceView){
         mSurfaceView = surfaceView;
         configMediaDecoder();
@@ -50,8 +53,9 @@ public class H264DecoderRunnable implements Runnable{
     }
 
     public void copyNalu(byte[] nalu_data, int nalu_size){
-        tmpByte = new byte[nalu_size];
-        System.arraycopy(nalu_data, 0, tmpByte, 0, nalu_size);
+        tmpByte2 = new byte[nalu_size];
+        System.arraycopy(nalu_data, 0, tmpByte2, 0, nalu_size);
+        fifo.add(tmpByte2);
     }
 
     public void closeMediaDecoder(){
@@ -280,6 +284,13 @@ public class H264DecoderRunnable implements Runnable{
 
     @Override
     public void run() {
-        decede();
+        while(true) {
+            while(fifo.size() <= 0){
+
+            }
+            tmpByte = fifo.getFirst();
+            decede();
+            fifo.removeFirst();
+        }
     }
 }

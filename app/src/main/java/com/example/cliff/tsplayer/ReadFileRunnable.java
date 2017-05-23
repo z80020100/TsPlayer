@@ -32,8 +32,8 @@ public class ReadFileRunnable implements Runnable {
 
     FileOutputStream fos = null;
     FileOutputStream audio_fos = null;
-    private String DumpVideoPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() +"/output.264";;
-    private String DumpAudioPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() +"/output.aac";;
+    private String DumpVideoPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() +"/output.264";
+    private String DumpAudioPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() +"/output.aac";
 
     H264DecoderRunnable decodeNaluWork;
     HandlerThread handlerThread;
@@ -94,6 +94,7 @@ public class ReadFileRunnable implements Runnable {
     public void setSurfaceView(SurfaceView surfaceView){
         mSurfaceView = surfaceView;
         decodeNaluWork = new H264DecoderRunnable(mSurfaceView);
+        handler.post(decodeNaluWork);
     }
 
     public int openFile(){
@@ -302,7 +303,7 @@ public class ReadFileRunnable implements Runnable {
 
                                 decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.copied_byte);
                                 //decodeNaluWork.setNalu(pes_packet.pes_data);
-                                decodeNaluWork.decede();
+                                //decodeNaluWork.decede();
 
 /*
                                 try {
@@ -413,9 +414,9 @@ public class ReadFileRunnable implements Runnable {
                         detect_pes_start = 0;
 
                         // send data to decoder
-                        //decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.pes_payload_length);
-                        decodeNaluWork.setNalu(pes_packet.pes_data);
-                        decodeNaluWork.decede();
+                        decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.pes_payload_length);
+                        //decodeNaluWork.setNalu(pes_packet.pes_data);
+                        //decodeNaluWork.decede();
                         //handler.post(decodeNaluWork);
 /*
                         // write to file
