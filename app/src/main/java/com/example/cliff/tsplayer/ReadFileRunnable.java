@@ -204,8 +204,9 @@ public class ReadFileRunnable implements Runnable {
                         if(pmt.program_info_length > 0){
                             // TODO: parse descriptor
                             //Log.e(TAG, "TODO: parse descriptor");
-                            //Log.e(TAG, "Skip parse descriptor");
+                            Log.w(TAG, "Skip parse descriptor, pmt.program_info_length > 0");
                             packet.tsPacketSkipReadByte(pmt.program_info_length);
+                            pmt.unread_size = pmt.unread_size - pmt.program_info_length;
                         }
 
                         // read stream info from PMT
@@ -217,7 +218,7 @@ public class ReadFileRunnable implements Runnable {
                             //stream_info_buf.printPmtStreamInfo();
                             if(stream_info_buf.es_info_length > 0){
                                 // TODO: parse descriptor, use skip as workaround
-                                //Log.e(TAG, "Skip parse descriptor");
+                                Log.w(TAG, "Skip parse descriptor, stream_info_buf.es_info_length > 0");
                                 packet.tsPacketSkipReadByte(stream_info_buf.es_info_length);
                                 pmt.unread_size = pmt.unread_size - stream_info_buf.es_info_length;
                             }
