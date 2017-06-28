@@ -155,7 +155,17 @@ public class ReadFileRunnable implements Runnable {
                     packet.packet_info.payload_size = 184 - adaptation_field_data.adaptation_field_length - 1; // 1: minus sizeof(adaptation_field_length)
                     //Log.i(TAG, String.format("TS packet payload size = %d", packet.packet_info.payload_size));
                     //Log.i(TAG, String.format("Skip: stuffing data %d bytes", adaptation_field_data.adaptation_field_length - 1));
-                    packet.tsPacketSkipReadByte(adaptation_field_data.adaptation_field_length - 1); // adaptation_field_length = sizeof(adaptation parameter) + sizeof(stuffing_data)
+                    if(packet.packet_info.payload_size >= 0){
+                        packet.tsPacketSkipReadByte(adaptation_field_data.adaptation_field_length - 1); // adaptation_field_length = sizeof(adaptation parameter) + sizeof(stuffing_data)
+                    }
+                    else{
+                        packet.printHeaderInfo();
+                        adaptation_field_data.printAdaptationField();
+                        Log.e("Cliff", "packet.packet_info.payload_size = " + packet.packet_info.payload_size);
+                        Log.e("Cliff", "TS packet payload size < 0, skip this TS packet");
+                        continue;
+                    }
+
                 }
                 else{
                     packet.packet_info.payload_size = 184;
@@ -170,7 +180,7 @@ public class ReadFileRunnable implements Runnable {
                         //psi_pointer_data.printPsiPointer();
                     }
                     else{
-                        Log.i(TAG, "Info: PSI section (PAT) without pointer_field");
+                        //Log.i(TAG, "Info: PSI section (PAT) without pointer_field");
                     }
 
                     // Parse PAT
@@ -195,7 +205,7 @@ public class ReadFileRunnable implements Runnable {
                             //psi_pointer_data.printPsiPointer();
                         }
                         else{
-                            Log.i(TAG, "Info: PSI section (PMT) without pointer_field");
+                            //Log.i(TAG, "Info: PSI section (PMT) without pointer_field");
                         }
 
                         packet.readPmt(pmt);
@@ -204,7 +214,7 @@ public class ReadFileRunnable implements Runnable {
                         if(pmt.program_info_length > 0){
                             // TODO: parse descriptor
                             //Log.e(TAG, "TODO: parse descriptor");
-                            Log.w(TAG, "Skip parse descriptor, pmt.program_info_length > 0");
+                            //Log.w(TAG, "Skip parse descriptor, pmt.program_info_length > 0");
                             packet.tsPacketSkipReadByte(pmt.program_info_length);
                             pmt.unread_size = pmt.unread_size - pmt.program_info_length;
                         }
@@ -218,7 +228,7 @@ public class ReadFileRunnable implements Runnable {
                             //stream_info_buf.printPmtStreamInfo();
                             if(stream_info_buf.es_info_length > 0){
                                 // TODO: parse descriptor, use skip as workaround
-                                Log.w(TAG, "Skip parse descriptor, stream_info_buf.es_info_length > 0");
+                                //Log.w(TAG, "Skip parse descriptor, stream_info_buf.es_info_length > 0");
                                 packet.tsPacketSkipReadByte(stream_info_buf.es_info_length);
                                 pmt.unread_size = pmt.unread_size - stream_info_buf.es_info_length;
                             }
@@ -271,7 +281,7 @@ public class ReadFileRunnable implements Runnable {
                                 Log.e(TAG, "Parse incomplete PES packet...");
                                 detect_pes_start = 0;
                                 // write data to file or send to decoder
-                                //decodeNaluWork.setNalu(pes_packet.pes_data);
+                                decodeNaluWork.copyNalu(pes_packet.pes_data, pes_packet.copied_byte);
                                 //decodeNaluWork.decede();
                                 pes_packet.copied_byte = 0;
                                 pes_packet.pes_payload_length = 0;
@@ -330,7 +340,6 @@ public class ReadFileRunnable implements Runnable {
                                     detect_pes_start = 0;
                                     Log.e(TAG, "Skip Unsupported PES");
                                 }
-                                //system("PAUSE");
                             }
                         else{
                                 //Log.i(TAG, "Seek back 3 bytes");
@@ -353,8 +362,8 @@ public class ReadFileRunnable implements Runnable {
                         }
                         expected_size = pes_packet.copied_byte + ts_unread_size;
                         if(expected_size > pes_packet.pes_payload_length && pes_separate_way == SEPARATE_PES_BY_PES_LENGTH){
-                            Log.e(TAG, String.format("expected_size = %d,  pes_packet.pes_payload_length = %d", expected_size, pes_packet.pes_payload_length));
-                            Log.e(TAG, "Parse incomplete PES packet...");
+                            //Log.e(TAG, String.format("expected_size = %d,  pes_packet.pes_payload_length = %d", expected_size, pes_packet.pes_payload_length));
+                            //Log.e(TAG, "Parse incomplete PES packet...");
                             detect_pes_start = 0;
                             // write data to file or send to decoder
                             //decodeNaluWork.setNalu(pes_packet.pes_data);
@@ -444,8 +453,8 @@ public class ReadFileRunnable implements Runnable {
                         ts_unread_size = packet.packet_info.packet_size - packet.packet_info.current_bit/8;
                         expected_size = audio_pes_packet.copied_byte + ts_unread_size;
                         if(expected_size > audio_pes_packet.pes_payload_length){
-                            Log.i(TAG, String.format("expected_size = %d,  audio_pes_packet.pes_payload_length = %d", expected_size, audio_pes_packet.pes_payload_length));
-                            Log.i(TAG, "Error: expected_size > audio_pes_packet.pes_payload_length");
+                            //Log.i(TAG, String.format("expected_size = %d,  audio_pes_packet.pes_payload_length = %d", expected_size, audio_pes_packet.pes_payload_length));
+                            //Log.i(TAG, "Error: expected_size > audio_pes_packet.pes_payload_length");
                         }
                         else{
                             //Log.i(TAG, String.format("expected_size = %d,  audio_pes_packet.pes_payload_length = %d", expected_size, audio_pes_packet.pes_payload_length));
