@@ -41,6 +41,8 @@ public class H264DecoderRunnable implements Runnable{
     int sps_end_pos = -1, pps_end_pos = -1, key_frame_end_pos = -1;
     boolean detect_sps = false, detect_pps = false, detect_key_frame;
 
+    boolean loop_ctl = true, decoding = false;
+
     LinkedBlockingDeque<byte[]> fifo = new LinkedBlockingDeque<byte[]>();
 
     public H264DecoderRunnable(SurfaceView surfaceView){
@@ -59,6 +61,16 @@ public class H264DecoderRunnable implements Runnable{
     }
 
     public void closeMediaDecoder(){
+        loop_ctl = false;
+        while(decoding == true){
+            Log.i("Decode", "Waiting for decoding stop");
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        Log.i("Decode", "closeMediaDecoder()");
         mMeidaCodec.stop();
         mMeidaCodec.release();
     }
@@ -166,51 +178,56 @@ public class H264DecoderRunnable implements Runnable{
             if(framType == 5/*IDR*/ || framType == 7/*SPS*/ /*|| framType == 8/*PPS*/ || framType == 9 /*AUD*/) {
                 if(mCount == 0){
                     // Feed SPS and PPS to decoder
-                    Log.i(TAG, "Feed SPS");
-                    inputBufferIndex = mMeidaCodec.dequeueInputBuffer(-1);
-                    if (inputBufferIndex >= 0) {
-                        ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
-                        inputBuffer.clear();
-                        inputBuffer.put(sps);
-                        mMeidaCodec.queueInputBuffer(inputBufferIndex, 0, sps.length, mCount, MediaCodec.BUFFER_FLAG_CODEC_CONFIG);
-                        outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 0);
-                        //outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 1000000l);
-                        //Log.i("Decode", "outputBufferIndex = " + Integer.toString(outputBufferIndex));
-                        switch (outputBufferIndex) {
-                            case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
-                                break;
-                            case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                                break;
-                            case MediaCodec.INFO_TRY_AGAIN_LATER:
-                                break;
-                            default:
-                                mMeidaCodec.releaseOutputBuffer(outputBufferIndex, false);
-                                break;
+                    if(sps != null){
+                        Log.i(TAG, "Feed SPS");
+                        inputBufferIndex = mMeidaCodec.dequeueInputBuffer(-1);
+                        if (inputBufferIndex >= 0) {
+                            ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
+                            inputBuffer.clear();
+                            inputBuffer.put(sps);
+                            mMeidaCodec.queueInputBuffer(inputBufferIndex, 0, sps.length, mCount, MediaCodec.BUFFER_FLAG_CODEC_CONFIG);
+                            outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 0);
+                            //outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 1000000l);
+                            //Log.i("Decode", "outputBufferIndex = " + Integer.toString(outputBufferIndex));
+                            switch (outputBufferIndex) {
+                                case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
+                                    break;
+                                case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+                                    break;
+                                case MediaCodec.INFO_TRY_AGAIN_LATER:
+                                    break;
+                                default:
+                                    mMeidaCodec.releaseOutputBuffer(outputBufferIndex, false);
+                                    break;
+                            }
+                            mCount++;
                         }
-                        mCount++;
                     }
-                    Log.i(TAG, "Feed PPS");
-                    inputBufferIndex = mMeidaCodec.dequeueInputBuffer(-1);
-                    if (inputBufferIndex >= 0) {
-                        ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
-                        inputBuffer.clear();
-                        inputBuffer.put(pps);
-                        mMeidaCodec.queueInputBuffer(inputBufferIndex, 0, pps.length, mCount, MediaCodec.BUFFER_FLAG_CODEC_CONFIG);
-                        outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 0);
-                        //outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 1000000l);
-                        //Log.i("Decode", "outputBufferIndex = " + Integer.toString(outputBufferIndex));
-                        switch (outputBufferIndex) {
-                            case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
-                                break;
-                            case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                                break;
-                            case MediaCodec.INFO_TRY_AGAIN_LATER:
-                                break;
-                            default:
-                                mMeidaCodec.releaseOutputBuffer(outputBufferIndex, false);
-                                break;
+
+                    if(pps != null){
+                        Log.i(TAG, "Feed PPS");
+                        inputBufferIndex = mMeidaCodec.dequeueInputBuffer(-1);
+                        if (inputBufferIndex >= 0) {
+                            ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
+                            inputBuffer.clear();
+                            inputBuffer.put(pps);
+                            mMeidaCodec.queueInputBuffer(inputBufferIndex, 0, pps.length, mCount, MediaCodec.BUFFER_FLAG_CODEC_CONFIG);
+                            outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 0);
+                            //outputBufferIndex = mMeidaCodec.dequeueOutputBuffer(info, 1000000l);
+                            //Log.i("Decode", "outputBufferIndex = " + Integer.toString(outputBufferIndex));
+                            switch (outputBufferIndex) {
+                                case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
+                                    break;
+                                case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+                                    break;
+                                case MediaCodec.INFO_TRY_AGAIN_LATER:
+                                    break;
+                                default:
+                                    mMeidaCodec.releaseOutputBuffer(outputBufferIndex, false);
+                                    break;
+                            }
+                            mCount++;
                         }
-                        mCount++;
                     }
                 }
 
@@ -284,13 +301,19 @@ public class H264DecoderRunnable implements Runnable{
 
     @Override
     public void run() {
-        while(true) {
+        decoding = true;
+        while(loop_ctl) {
             while(fifo.size() <= 0){
-
+                try {
+                    Thread.sleep(16);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
             tmpByte = fifo.getFirst();
             decede();
             fifo.removeFirst();
         }
+        decoding = false;
     }
 }
